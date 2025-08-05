@@ -1,164 +1,137 @@
-#!/usr/bin/env node
-
 import fs from "fs";
 import path from "path";
 import chalk from "chalk";
+
 import { flattenPages } from "./read/flatten-pages.js";
-import { compareEntry } from "./read/compare-entry.js";
-import { renderPage } from "./render/render.js";
 import { applyChanges } from "./copy/write.js";
 import { isCLI, loadJSON, logChange, walkAllFiles } from "./etc/helpers.js";
-
-// 🧠 Main function
-export async function resolveAll(projectRoot, distRoot, pagesJsonPath, configPath, options = {}) {
-    const { write = false, clean = false, verbose = false } = options;
-
-    const root = path.resolve(projectRoot);
-    const dist = path.resolve(distRoot);
-
-    const defaults = await loadJSON(configPath);
-    const nested = await loadJSON(pagesJsonPath);
-    const flatPages = flattenPages(nested);
-
-    // resolve the optional shared global HTML path (only once)
-    const defaultGlobalHtmlPath = defaults.globalHtmlPath
-        ? path.resolve(root, defaults.globalHtmlPath)
-        : null;
-
-    const expectedPaths = new Set();
-    const allChanges = [];
-    let totalScanned = 0;
-    let totalWritten = 0;
-    let totalRendered = 0;
-    let totalDeleted = 0;
-
-    for (const page of flatPages) {
-        const {
-            title, contentPath, outputPath, pageId,
-            imports = [], styles = [], scripts = [], modules = [],
-            navPath = null, articleId = null, image = null,
-        } = page;
-
-        // All remaining paths: resolve user-provided or default to expected project-relative paths
-        const templatePath = path.resolve(root, page.templatePath ?? defaults.templatePath);
-        const headContentPath = path.resolve(root, page.headContentPath ?? defaults.headContentPath);
-        const headerPath = path.resolve(root, page.headerPath ?? defaults.headerPath);
-        const footerPath = path.resolve(root, page.footerPath ?? defaults.footerPath);
-        
-        const globalHtmlPath = page.globalHtmlPath
-            ? path.resolve(root, page.globalHtmlPath)
-            : defaultGlobalHtmlPath;
+import { renderEntry } from "./render/render-entry.js";
+import { resolveEntryImports } from "./resolve-entry-imports.js";
+import { hashText, loadGoblinCache, saveGoblinCache } from "./etc/cache-utils.js";
 
 
-        // ── Rendering Phase ──
-        if (!contentPath || !outputPath) {
-            if (verbose) console.warn(chalk.gray(`[SKIP] ${pageId}: no contentPath or outputPath`));
-        } else {
-            const pagePath = path.resolve(root, contentPath);
-            const outputHtmlPath = path.resolve(root, outputPath);
+// ─── Scan Render Step ───
+function scanRenderEntry(root, page, config, defaultGlobalHtmlPath, goblinCache) {
+    const dstPath = page.outputPath;
+    const cacheKey = path.resolve(dstPath || "[no-output]");
 
-            if (fs.existsSync(pagePath)) {
-                await renderPage({
-                    title,
-                    pagePath,
-                    outputPath: outputHtmlPath,
-                    headContentPath,
-                    headerPath,
-                    footerPath,
-                    templatePath,
-                    scripts,
-                    modules,
-                    styles,
-                    globalHtmlPath,
-                    navPath,
-                    articleId,
-                    image
-                });
-                totalRendered++;
-            } else {
-                console.warn(chalk.red(`[MISSING] ${pageId}: ${contentPath}`));
-            }
-        }
+    const inputFiles = {
+        template: config.templatePath,
+        page: page.contentPath,
+        head: config.headContentPath,
+        header: config.headerPath,
+        footer: config.footerPath,
+        global: defaultGlobalHtmlPath || undefined
+    };
 
-        // ── Resolve Imports Phase ──
-        const result = compareEntry(root, page, {
-            verbose,
-            pageId,
-        });
-
-        totalScanned += result.scanned;
-        allChanges.push(...result.changes);
-        for (const p of result.expectedPaths) {
-            expectedPaths.add(p);
-        }
-
-        // Track output HTML path as expected (rendered output)
-        if (outputPath) {
-            const htmlOut = path.resolve(root, outputPath);
-            expectedPaths.add(htmlOut);
-        }
-
-        // Also track expected import destinations
-        const outputDir = path.resolve(root, path.dirname(outputPath));
-        for (const importPath of imports) {
-            const dst = path.join(outputDir, path.basename(importPath));
-            expectedPaths.add(path.resolve(dst));
+    const inputHashes = {};
+    for (const [key, filePath] of Object.entries(inputFiles)) {
+        if (!filePath) continue;
+        try {
+            const content = fs.readFileSync(filePath, "utf8");
+            inputHashes[key] = hashText(content);
+        } catch {
+            inputHashes[key] = null;
         }
     }
 
-    console.log(`\n📄 Total files scanned: ${totalScanned}`);
+    const cached = goblinCache[cacheKey];
+    const needsRender = !cached || JSON.stringify(cached.inputHashes) !== JSON.stringify(inputHashes);
+
+    return { dstPath, needsRender, cacheKey, inputHashes };
+}
+
+
+// ─── Main Orchestration ───
+export async function resolveAll(projectRoot, distRoot, pagesJsonPath, configPath, options = {}) {
+    const { write = false, clean = false, verbose = false } = options;
+    const root = path.resolve(projectRoot);
+    const dist = path.resolve(distRoot);
+
+    const rawConfig = await loadJSON(configPath);
+    const config = rawConfig.default ? { ...rawConfig, ...rawConfig.default } : rawConfig;
+    delete config.default;
+
+    const pages = flattenPages(await loadJSON(pagesJsonPath));
+    const defaultGlobalHtmlPath = config.globalHtmlPath
+        ? path.resolve(root, config.globalHtmlPath)
+        : null;
+
+    const goblinCache = loadGoblinCache(root);
+    const expectedPaths = new Set();
+    const allChanges = [];
+    const renderPlans = [];
+    let totalScanned = 0, totalWritten = 0, totalRendered = 0, totalDeleted = 0;
+
+    for (const page of pages) {
+        // 📄 Plan render step
+        const renderPlan = scanRenderEntry(root, page, config, defaultGlobalHtmlPath, goblinCache);
+        renderPlans.push({ ...renderPlan, page });
+
+        if (!renderPlan.needsRender) {
+            if (verbose) console.log(chalk.gray(`[SKIP] ${renderPlan.cacheKey}: inputs unchanged`));
+        }
+
+        // 📦 Plan copy/import changes
+        const { scanned, changes } = resolveEntryImports(root, page, expectedPaths, verbose);
+        totalScanned += scanned;
+        allChanges.push(...changes);
+    }
+
     if (write) {
-        const pendingWrites = allChanges.filter(c => c.status !== "MATCHES");
-        const written = applyChanges(pendingWrites);
-        written.forEach(entry => {
+        // ✍️  Execute render plans
+        for (const plan of renderPlans) {
+            if (plan.needsRender) {
+                const didRender = await renderEntry(root, plan.page, config, defaultGlobalHtmlPath, verbose);
+                if (didRender) {
+                    goblinCache[plan.cacheKey] = { inputHashes: plan.inputHashes };
+                    totalRendered++;
+                    if (verbose) console.log(`Rendered ${plan.dstPath}`);
+                }
+            }
+        }
+
+        // ✍️  Execute copy changes
+        const pending = allChanges.filter(c => c.status !== "MATCHES");
+        const written = applyChanges(pending);
+        written.forEach((entry) => {
             logChange({ ...entry, status: "WRITTEN" });
             expectedPaths.add(path.resolve(entry.dstPath));
         });
         totalWritten = written.length;
-        console.log(`✍️  Total files written: ${totalWritten}`);
+
+        saveGoblinCache(root, goblinCache);
     }
 
-    console.log(`✅ Rendered ${totalRendered} pages.`);
-
     if (clean) {
-        const allDistFiles = walkAllFiles(dist);
-        for (const abs of allDistFiles) {
+        for (const abs of walkAllFiles(dist)) {
             if (!expectedPaths.has(abs)) {
-                const rel = path.relative(dist, abs);
-                logChange({ status: "DELETE", relative: rel });
+                logChange({ status: "DELETE", relative: path.relative(dist, abs) });
                 fs.unlinkSync(abs);
                 totalDeleted++;
             }
         }
-        console.log(`🗑️  Orphans deleted: ${totalDeleted}`);
     }
 
-    return {
-        scanned: totalScanned,
-        written: totalWritten,
-        rendered: totalRendered,
-        deleted: totalDeleted,
-    };
+    console.log(`\n📄 Total files scanned: ${totalScanned}`);
+    if (write) console.log(`✍️  Total files written: ${totalWritten}`);
+    console.log(`✅ Rendered ${totalRendered} pages.`);
+    if (clean) console.log(`🗑️  Orphans deleted: ${totalDeleted}`);
+
+    return { scanned: totalScanned, written: totalWritten, rendered: totalRendered, deleted: totalDeleted };
 }
 
 // ─── CLI ENTRY ───
 if (isCLI(import.meta.url)) {
-    const args = process.argv.slice(2);
-    const [root, dist, pages, config, ...rest] = args;
-
+    const [root, dist, pages, config, ...rest] = process.argv.slice(2);
     if (!root || !dist || !pages || !config) {
         console.log("Usage: node resolve-all.js <projectRoot> <distRoot> <pagesJson> <configJson> [--write] [--clean] [--verbose]");
         process.exit(1);
     }
-
-    const writeMode = rest.includes("--write");
-    const cleanMode = rest.includes("--clean");
-    const verboseMode = rest.includes("--verbose");
-
     resolveAll(root, dist, pages, config, {
-        write: writeMode,
-        clean: cleanMode,
-        verbose: verboseMode,
+        write: rest.includes("--write"),
+        clean: rest.includes("--clean"),
+        verbose: rest.includes("--verbose"),
     }).catch((err) => {
         console.error(chalk.red(`Error: ${err.message}`));
         process.exit(1);
