@@ -1,6 +1,6 @@
 // resolve-entry-imports.js
 import path from "path";
-import { compareEntry } from "./read/compare-entry.js";
+import { compareEntry } from "./compare-entry.js";
 
 export function resolveEntryImports(root, page, expectedPaths, verbose) {
     const { outputPath, imports = [], pageId } = page;

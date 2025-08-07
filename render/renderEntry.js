@@ -1,10 +1,10 @@
-// render/render-entry.js
-import path from 'path';
-import fs from 'fs';
-import chalk from 'chalk';
-import { renderPage } from './render.js';
+// render/renderEntry.js
+import path from "path";
+import fs from "fs";
+import chalk from "chalk";
+import { renderPage } from "./renderPage.js";
 
-export async function renderEntry(root, page, config, defaultGlobalHtmlPath, verbose) {
+export async function renderEntry(root, page, config, verbose) {
     const {
         title, contentPath, outputPath, pageId,
         imports = [], styles = [], scripts = [], modules = [],
@@ -26,15 +26,25 @@ export async function renderEntry(root, page, config, defaultGlobalHtmlPath, ver
     const headContentPath = path.resolve(root, page.headContentPath ?? config.headContentPath);
     const headerPath = path.resolve(root, page.headerPath ?? config.headerPath);
     const footerPath = path.resolve(root, page.footerPath ?? config.footerPath);
-    const globalHtmlPath = page.globalHtmlPath
-        ? path.resolve(root, page.globalHtmlPath)
-        : defaultGlobalHtmlPath;
+    const globalHtmlPath = (page.globalHtmlPath ?? config.globalHtmlPath)
+        ? path.resolve(root, page.globalHtmlPath ?? config.globalHtmlPath)
+        : null;
 
     await renderPage({
-        title, pagePath,
+        title,
+        pagePath,
         outputPath: path.resolve(root, outputPath),
-        headContentPath, headerPath, footerPath, templatePath,
-        scripts, modules, styles, globalHtmlPath, navPath, articleId, image
+        headContentPath,
+        headerPath,
+        footerPath,
+        templatePath,
+        scripts,
+        modules,
+        styles,
+        globalHtmlPath,
+        navPath,
+        articleId,
+        image,
     });
 
     return true;

@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import fs from "fs";
 import path from "path";
 import chalk from "chalk";
@@ -5,41 +7,10 @@ import chalk from "chalk";
 import { flattenPages } from "./read/flatten-pages.js";
 import { applyChanges } from "./copy/write.js";
 import { isCLI, loadJSON, logChange, walkAllFiles } from "./etc/helpers.js";
-import { renderEntry } from "./render/render-entry.js";
-import { resolveEntryImports } from "./resolve-entry-imports.js";
-import { hashText, loadGoblinCache, saveGoblinCache } from "./etc/cache-utils.js";
-
-
-// ─── Scan Render Step ───
-function scanRenderEntry(root, page, config, defaultGlobalHtmlPath, goblinCache) {
-    const dstPath = page.outputPath;
-    const cacheKey = path.resolve(dstPath || "[no-output]");
-
-    const inputFiles = {
-        template: config.templatePath,
-        page: page.contentPath,
-        head: config.headContentPath,
-        header: config.headerPath,
-        footer: config.footerPath,
-        global: defaultGlobalHtmlPath || undefined
-    };
-
-    const inputHashes = {};
-    for (const [key, filePath] of Object.entries(inputFiles)) {
-        if (!filePath) continue;
-        try {
-            const content = fs.readFileSync(filePath, "utf8");
-            inputHashes[key] = hashText(content);
-        } catch {
-            inputHashes[key] = null;
-        }
-    }
-
-    const cached = goblinCache[cacheKey];
-    const needsRender = !cached || JSON.stringify(cached.inputHashes) !== JSON.stringify(inputHashes);
-
-    return { dstPath, needsRender, cacheKey, inputHashes };
-}
+import { renderEntry } from "./render/renderEntry.js";
+import { resolveEntryImports } from "./read/resolve-entry-imports.js";
+import { loadGoblinCache, saveGoblinCache } from "./etc/cache-utils.js";
+import { scanRenderEntry } from "./read/scanRenderEntry.js";
 
 
 // ─── Main Orchestration ───
@@ -53,46 +24,38 @@ export async function resolveAll(projectRoot, distRoot, pagesJsonPath, configPat
     delete config.default;
 
     const pages = flattenPages(await loadJSON(pagesJsonPath));
-    const defaultGlobalHtmlPath = config.globalHtmlPath
-        ? path.resolve(root, config.globalHtmlPath)
-        : null;
-
     const goblinCache = loadGoblinCache(root);
     const expectedPaths = new Set();
-    const allChanges = [];
-    const renderPlans = [];
+    const copyChanges = [];
+    const htmlChanges = [];
     let totalScanned = 0, totalWritten = 0, totalRendered = 0, totalDeleted = 0;
 
     for (const page of pages) {
-        // 📄 Plan render step
-        const renderPlan = scanRenderEntry(root, page, config, defaultGlobalHtmlPath, goblinCache);
-        renderPlans.push({ ...renderPlan, page });
-
-        if (!renderPlan.needsRender) {
-            if (verbose) console.log(chalk.gray(`[SKIP] ${renderPlan.cacheKey}: inputs unchanged`));
-        }
+        // 📄 Plan HTML render step
+        const html = scanRenderEntry(root, page, config, goblinCache);
+        html.forEach(change => expectedPaths.add(change.dstPath));
+        htmlChanges.push(...html);
 
         // 📦 Plan copy/import changes
         const { scanned, changes } = resolveEntryImports(root, page, expectedPaths, verbose);
         totalScanned += scanned;
-        allChanges.push(...changes);
+        copyChanges.push(...changes);
     }
 
     if (write) {
-        // ✍️  Execute render plans
-        for (const plan of renderPlans) {
-            if (plan.needsRender) {
-                const didRender = await renderEntry(root, plan.page, config, defaultGlobalHtmlPath, verbose);
-                if (didRender) {
-                    goblinCache[plan.cacheKey] = { inputHashes: plan.inputHashes };
-                    totalRendered++;
-                    if (verbose) console.log(`Rendered ${plan.dstPath}`);
-                }
+        // ✍️  Write HTML changes
+        for (const { dstPath, inputHashes, cacheKey, status } of htmlChanges) {
+            const page = pages.find(p => path.resolve(root, p.outputPath) === dstPath);
+            const didRender = await renderEntry(root, page, config, verbose); // still passes null as fallback
+            if (didRender) {
+                goblinCache[cacheKey] = { inputHashes };
+                totalRendered++;
+                if (verbose) console.log(`Rendered ${dstPath}`);
             }
         }
 
-        // ✍️  Execute copy changes
-        const pending = allChanges.filter(c => c.status !== "MATCHES");
+        // ✍️  Write asset copy changes
+        const pending = copyChanges.filter(c => c.status !== "MATCHES");
         const written = applyChanges(pending);
         written.forEach((entry) => {
             logChange({ ...entry, status: "WRITTEN" });
@@ -104,12 +67,26 @@ export async function resolveAll(projectRoot, distRoot, pagesJsonPath, configPat
     }
 
     if (clean) {
+        const deletedHtmlKeys = [];
         for (const abs of walkAllFiles(dist)) {
             if (!expectedPaths.has(abs)) {
                 logChange({ status: "DELETE", relative: path.relative(dist, abs) });
                 fs.unlinkSync(abs);
                 totalDeleted++;
+
+                // clean up cache if HTML was deleted
+                const absResolved = path.resolve(abs);
+                if (goblinCache[absResolved]) {
+                    deletedHtmlKeys.push(absResolved);
+                }
             }
+        }
+
+        if (deletedHtmlKeys.length > 0) {
+            for (const key of deletedHtmlKeys) {
+                delete goblinCache[key];
+            }
+            saveGoblinCache(root, goblinCache);
         }
     }
 
