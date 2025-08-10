@@ -5,26 +5,23 @@ import path from "path";
 import { fileURLToPath } from 'url';
 
 
-// helper to 
+// helper to determine if a module was invoked via CLI
 export function isCLI(callerMetaUrl) {
     if (!process.argv[1]) return false; // safeguard if no argv[1]
-
     const invokedPath = fs.realpathSync(process.argv[1]);
     const callerPath = fs.realpathSync(fileURLToPath(callerMetaUrl));
-
     return invokedPath === callerPath;
 }
 
 
-// helper function to create a directory if it doesn't exist
+// helper to autocreate a directory if it doesn't exist
 export function ensureDir(dirPath) {
     if (!fs.existsSync(dirPath)) {
         fs.mkdirSync(dirPath, { recursive: true });
     }
 }
 
-// ------------------ HELPERS ------------------
-
+// function to find all files in a directory
 export function walkAllFiles(dir) {
     let files = [];
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -38,6 +35,7 @@ export function walkAllFiles(dir) {
     return files;
 }
 
+// function to print a file if changed
 export function logChange(change, options = {}) {
     const { verbose = false } = options;
     const rel = change.relative;
