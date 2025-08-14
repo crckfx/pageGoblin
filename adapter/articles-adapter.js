@@ -2,10 +2,10 @@
 import path from "path";
 
 /**
- * Turn articles.json {id: {title, image, blurb}} into Page-like entries.
- * No IO. All paths are project-relative (same as your pages.json).
+ * turn articles.json {id: {title, image, blurb}} into Page-like entries.
+ * all paths are project-relative (same as pages.json).
  */
-export function inflateArticlesToPages(root, articlesObj, config) {
+export function inflateArticlesToPages(articlesObj, config) {
     const out = [];
     const articleCfg = config.article ?? {};
 

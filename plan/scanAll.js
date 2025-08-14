@@ -24,7 +24,7 @@ export async function scanAll(projectRoot, distRoot, pagesJsonPath, configPath, 
     if (config.articlesJsonPath) {
         const articlesPath = path.resolve(root, config.articlesJsonPath);
         const articlesObj = await loadJSON(articlesPath);
-        articlePages = inflateArticlesToPages(root, articlesObj, config);
+        articlePages = inflateArticlesToPages(articlesObj, config);
     }
 
     // unified list for scanning

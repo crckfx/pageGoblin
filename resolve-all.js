@@ -11,12 +11,12 @@ import { writeFromPlan } from "./plan/writeFromPlan.js";
 
 export async function resolveAll(projectRoot, distRoot, pagesJsonPath, configPath, options = {}) {
     const { write = false, clean = false, verbose = false } = options;
-        
+
     // scan it up
     const plan = await scanAll(projectRoot, distRoot, pagesJsonPath, configPath, verbose);
-    
+
     // keep track of real changes
-    let totalWritten, totalRendered, totalDeleted = 0;
+    let totalWritten = 0, totalRendered = 0, totalDeleted = 0;
 
     if (write) {
         const { totalRendered: r, totalWritten: w } = await writeFromPlan(plan, { verbose });
@@ -24,7 +24,7 @@ export async function resolveAll(projectRoot, distRoot, pagesJsonPath, configPat
         totalWritten = w;
         saveGoblinCache(plan.root, plan.goblinCache);
     }
-    
+
     if (clean) {
         const { totalDeleted: d, cacheModified } = cleanFromPlan(plan);
         totalDeleted = d;
@@ -36,7 +36,7 @@ export async function resolveAll(projectRoot, distRoot, pagesJsonPath, configPat
     console.log(`📄 Scanned ${plan.pages.length} pages for rendering.`);
     if (write) {
         if (totalWritten > 0) console.log(`✍️  Total files copied: ${totalWritten}`);
-        if (totalRendered > 0)  console.log(`✍️  Total pages rendered: ${totalRendered}`);
+        if (totalRendered > 0) console.log(`✍️  Total pages rendered: ${totalRendered}`);
     }
     if (clean) {
         if (totalDeleted > 0) console.log(`🗑️  Orphans deleted: ${totalDeleted}`);
