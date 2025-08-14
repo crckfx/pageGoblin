@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 import chalk from "chalk";
-import { isCLI, } from "./etc/helpers.js";
-import { loadGoblinCache, saveGoblinCache } from "./etc/cache-utils.js";
+import path from "path"; // NEW: for absolute dist
+import { isCLI } from "./etc/helpers.js";
+import { saveGoblinCache } from "./etc/cache-utils.js";
 import { scanAll } from "./plan/scanAll.js";
 import { cleanFromPlan } from "./plan/cleanFromPlan.js";
 import { writeFromPlan } from "./plan/writeFromPlan.js";
@@ -12,8 +13,11 @@ import { writeFromPlan } from "./plan/writeFromPlan.js";
 export async function resolveAll(projectRoot, distRoot, pagesJsonPath, configPath, options = {}) {
     const { write = false, clean = false, verbose = false } = options;
 
+    // Canonicalize once so both the plan and the on-disk cache get the same absolute dist
+    const absDistRoot = path.resolve(distRoot);
+
     // scan it up
-    const plan = await scanAll(projectRoot, distRoot, pagesJsonPath, configPath, verbose);
+    const plan = await scanAll(projectRoot, absDistRoot, pagesJsonPath, configPath, verbose);
 
     // keep track of real changes
     let totalWritten = 0, totalRendered = 0, totalDeleted = 0;
@@ -22,13 +26,14 @@ export async function resolveAll(projectRoot, distRoot, pagesJsonPath, configPat
         const { totalRendered: r, totalWritten: w } = await writeFromPlan(plan, { verbose });
         totalRendered = r;
         totalWritten = w;
-        saveGoblinCache(plan.root, plan.goblinCache);
+        // Write the new on-disk shape with absolute dist
+        saveGoblinCache(plan.root, plan.goblinCache, absDistRoot);
     }
 
     if (clean) {
         const { totalDeleted: d, cacheModified } = cleanFromPlan(plan);
         totalDeleted = d;
-        if (cacheModified) saveGoblinCache(plan.root, plan.goblinCache);
+        if (cacheModified) saveGoblinCache(plan.root, plan.goblinCache, absDistRoot);
     }
 
     // summary output

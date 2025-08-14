@@ -1,21 +1,16 @@
 #!/usr/bin/env node
-// run-img-goblin.js
 // Usage:
 //   node run-img-goblin.js <projectRoot> [--write] [--verbose]
 //
-// Behavior:
-//   - Read <projectRoot>/.pageGoblin/dist.txt for the webroot (dist) directory
-//   - Read <projectRoot>/.pageGoblin/cache.json
-//   - For each cached HTML (absolute path) that exists and isn't marked jobs.imgGoblin === true:
-//       * run applyImgGoblinToBuiltPage(htmlPath, { webRoot, write, verbose })
-//       * if it returns true AND --write is set, set jobs.imgGoblin = true
-//   - Write cache once at the end only when --write is set
+// Disk shape: .pageGoblin/cache.json = { pages: {...}, dist: "..." }
+// In-memory for most code: flat map (pages)
 
 import fs from "fs";
 import path from "path";
 import { isCLI } from "./etc/helpers.js";
+import { loadGoblinCache, saveGoblinCache } from "./etc/cache-utils.js";
 
-// imgGoblin modules
+// Per-page worker uses existing imgGoblin modules
 import { imagePresets } from "./imgGoblin/global.js";
 import { getTaggedImagesWithPresets } from "./imgGoblin/functions.js";
 import { processHtml } from "./imgGoblin/processHtml.js";
@@ -23,24 +18,35 @@ import { loadHtml } from "./etc/cheerio-util.js";
 
 const JOB_KEY = "imgGoblin";
 
+function readDistFromCache(projectRoot) {
+    const file = path.join(projectRoot, ".pageGoblin", "cache.json");
+    if (!fs.existsSync(file)) return "";
+    try {
+        const json = JSON.parse(fs.readFileSync(file, "utf8"));
+        return typeof json.dist === "string" ? json.dist : "";
+    } catch {
+        return "";
+    }
+}
+
 /**
  * Apply imgGoblin transforms to a single built HTML page.
  * Returns true on success (even if no changes). Exceptions bubble to caller.
  * Only writes to disk if options.write === true.
  */
-function applyImgGoblinToBuiltPage(htmlPath, { webRoot, write = false, verbose = false } = {}) {
+function applyImgGoblinToBuiltPage(htmlPath, { distRoot, write = false, verbose = false } = {}) {
     const $ = loadHtml(htmlPath);
     const nodes = getTaggedImagesWithPresets($, imagePresets);
 
     if (!nodes.length) {
-        if (verbose) console.log(`[NONE] (no targets) ${htmlPath}`);
+        if (verbose) console.log(`[NONE] ${htmlPath}`);
         return true; // nothing to do is still success
     }
 
-    const logs = processHtml($, nodes, webRoot);
+    const logs = processHtml($, nodes, distRoot);
 
     if (!logs.length) {
-        if (verbose) console.log(`[NOOP] (no changes) ${htmlPath}`);
+        if (verbose) console.log(`[NOOP] ${htmlPath}`);
         return true; // transform decided no change
     }
 
@@ -55,7 +61,6 @@ function applyImgGoblinToBuiltPage(htmlPath, { webRoot, write = false, verbose =
 }
 
 // --------------------------- CLI --------------------------------------
-// Sweep the cache for pages needing imgGoblin, then apply to those pages.
 function sweepCacheForImgGoblin() {
     const [projectRootArg, ...flags] = process.argv.slice(2);
     const verbose = flags.includes("--verbose");
@@ -67,85 +72,61 @@ function sweepCacheForImgGoblin() {
     }
 
     const projectRoot = path.resolve(projectRootArg);
-    const goblinDir = path.join(projectRoot, ".pageGoblin");
-    const cachePath = path.join(goblinDir, "cache.json");
-    const distTxtPath = path.join(goblinDir, "dist.txt");
-
-    if (!fs.existsSync(distTxtPath)) {
-        console.error(`Missing required file: ${distTxtPath}`);
+    const distRoot = path.resolve(readDistFromCache(projectRoot) || "");
+    if (!distRoot) {
+        console.error("dist path not found in cache.json (expected { pages: {...}, dist: \"...\" }).");
         process.exit(1);
     }
-    const distRaw = fs.readFileSync(distTxtPath, "utf8").trim();
-    if (!distRaw) {
-        console.error(`Empty dist path in: ${distTxtPath}`);
-        process.exit(1);
-    }
-    const webRoot = path.resolve(distRaw);
 
-    const cache = fs.existsSync(cachePath)
-        ? JSON.parse(fs.readFileSync(cachePath, "utf8"))
-        : {};
+    const pagesMap = loadGoblinCache(projectRoot); // flat map (json.pages)
+    let considered = 0,
+        processed = 0,
+        skippedDone = 0,
+        missing = 0,
+        failed = 0;
 
-    let consideredCount = 0,
-        processedCount = 0,
-        skippedAlreadyDoneCount = 0,
-        missingOnDiskCount = 0,
-        failedCount = 0;
+    for (const [pagePath, entry] of Object.entries(pagesMap)) {
+        if (!/\.html?$/i.test(pagePath)) continue;
 
-    for (const [key, entry] of Object.entries(cache)) {
-        // Only HTML files that exist (cache keys are absolute HTML paths):
-        if (!/\.html?$/i.test(key)) continue;
+        const absPagePath = path.resolve(pagePath);
+        if (!fs.existsSync(absPagePath)) { missing++; continue; }
 
-        const absKey = path.resolve(key);
-        if (!fs.existsSync(absKey)) { missingOnDiskCount++; continue; }
-
-        consideredCount++;
+        considered++;
 
         if (entry?.jobs?.[JOB_KEY] === true) {
-            if (verbose) console.log(`[SKIP:done] ${absKey}`);
-            skippedAlreadyDoneCount++;
+            if (verbose) console.log(`[SKIP:done] ${absPagePath}`);
+            skippedDone++;
             continue;
         }
 
-        if (verbose) console.log(`[RUN] ${absKey}`);
+        if (verbose) console.log(`[RUN] ${absPagePath}`);
 
         try {
-            const ok = applyImgGoblinToBuiltPage(absKey, { webRoot, write, verbose });
+            const ok = applyImgGoblinToBuiltPage(absPagePath, { distRoot, write, verbose });
             if (ok && write) {
                 entry.jobs = entry.jobs || {};
                 entry.jobs[JOB_KEY] = true;
-                processedCount++;
-            } else if (!write && ok) {
-                // preview mode: do not mark cache
+                processed++;
             } else if (!ok) {
-                failedCount++;
-                if (verbose) console.error(`[FAIL:false] ${absKey}`);
+                failed++;
+                if (verbose) console.error(`[FAIL:false] ${absPagePath}`);
             }
         } catch (err) {
-            failedCount++;
-            console.error(`[FAIL:exception] ${absKey}\n  → ${err.message}`);
+            failed++;
+            console.error(`[FAIL:exception] ${absPagePath}\n  → ${err.message}`);
         }
     }
 
     if (write) {
-        fs.mkdirSync(path.dirname(cachePath), { recursive: true });
-        fs.writeFileSync(cachePath, JSON.stringify(cache, null, 2));
+        // persist updated flat map under { pages, dist }
+        saveGoblinCache(projectRoot, pagesMap, distRoot);
     }
 
-    // One-line summary by default; detailed breakdown with --verbose
     const mode = write ? "write" : "preview";
-    const summaryOneLine =
-        `imgGoblin(${mode}): run=${processedCount} skip=${skippedAlreadyDoneCount} ` +
-        `miss=${missingOnDiskCount} fail=${failedCount} total=${consideredCount}`;
-    console.log(summaryOneLine);
-    if (verbose) {
-        console.log(
-            `  considered=${consideredCount} skipDone=${skippedAlreadyDoneCount} ` +
-            `missing=${missingOnDiskCount} failed=${failedCount} cache=${Object.keys(cache).length}`
-        );
-    }
-
-    if (failedCount) process.exit(1);
+    console.log(
+        `imgGoblin(${mode}): run=${processed} skip=${skippedDone} miss=${missing} fail=${failed} total=${considered}`
+    );
+    if (failed) process.exit(1);
 }
 
 if (isCLI(import.meta.url)) sweepCacheForImgGoblin();
