@@ -1,4 +1,3 @@
-// read/inflateArticlesToPages.js
 import path from "path";
 
 /**
@@ -17,14 +16,13 @@ export function inflateArticlesToPages(articlesObj, config) {
             image: meta.image,
             blurb: meta.blurb ?? "",
 
-            // Page contract (relative to project root; renderEntry resolves them):
+            // make it like a page
             contentPath: path.join("articles", `${articleId}.html`),
             outputPath: `/articles/${articleId}/index.html`,
 
-            // Article defaults (still normal Page fields; page-level overrides still win)
+            // make it specifically like a page that is an article
             templatePath: articleCfg.templatePath ?? config.templatePath,
             styles: Array.isArray(articleCfg.styles) ? articleCfg.styles : [],
-            // scripts/modules/navPath/etc can be added later if you want parity
         });
     }
 

@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { scanDifferences } from "../copy/scan.js";
+import { scanDifferences } from "./scanEntryImports.js";
 import { isCLI, logChange } from "../etc/helpers.js";
 
 /**

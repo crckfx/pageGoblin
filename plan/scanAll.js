@@ -1,7 +1,7 @@
 import path from "path";
-import { flattenPages } from "../read/flatten-pages.js";
+import { flattenPages } from "../adapter/flatten-pages.js";
 import { loadJSON } from "../etc/helpers.js";
-import { resolveEntryImports } from "../read/resolve-entry-imports.js";
+// import { resolveEntryImports } from "../read/resolve-entry-imports.js";
 import { loadGoblinCache } from "../etc/cache-utils.js";
 import { scanRenderEntry } from "./scanRenderEntry.js";
 import { inflateArticlesToPages } from "../adapter/articles-adapter.js";
@@ -48,4 +48,28 @@ export async function scanAll(projectRoot, distRoot, config, verbose = false) {
         htmlChanges,
         totalScanned
     };
+}
+
+
+
+
+// import path from "path";
+import { compareEntry } from "../plan/compare-entry.js";
+
+function resolveEntryImports(root, page, expectedPaths, verbose) {
+    const { outputPath, imports = [], pageId } = page;
+    const result = compareEntry(root, page, { verbose, pageId });
+
+    // collect results
+    result.expectedPaths.forEach((p) => expectedPaths.add(p));
+    if (outputPath) expectedPaths.add(path.resolve(root, outputPath));
+
+    // expected import destinations
+    if (outputPath) {
+        const outputDir = path.resolve(root, path.dirname(outputPath));
+        for (const importPath of imports) {
+            expectedPaths.add(path.resolve(path.join(outputDir, path.basename(importPath))));
+        }
+    }
+    return result;
 }

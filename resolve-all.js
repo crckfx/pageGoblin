@@ -5,8 +5,8 @@ import path from "path";
 import { isCLI } from "./etc/helpers.js";
 import { saveGoblinCache } from "./etc/cache-utils.js";
 import { scanAll } from "./plan/scanAll.js";
-import { cleanFromPlan } from "./plan/cleanFromPlan.js";
-import { writeFromPlan } from "./plan/writeFromPlan.js";
+import { cleanFromPlan } from "./execute/cleanFromPlan.js";
+import { writeFromPlan } from "./execute/writeFromPlan.js";
 import { loadAndValidateConfig } from "./etc/config-utils.js";
 
 /* --------------------------- Orchestrator API -------------------------- */
