@@ -1,32 +1,35 @@
 #!/usr/bin/env node
 
 import chalk from "chalk";
-import path from "path"; // NEW: for absolute dist
+import path from "path";
 import { isCLI } from "./etc/helpers.js";
 import { saveGoblinCache } from "./etc/cache-utils.js";
 import { scanAll } from "./plan/scanAll.js";
 import { cleanFromPlan } from "./plan/cleanFromPlan.js";
 import { writeFromPlan } from "./plan/writeFromPlan.js";
+import { loadAndValidateConfig } from "./etc/config-utils.js";
 
 /* --------------------------- Orchestrator API -------------------------- */
 
-export async function resolveAll(projectRoot, distRoot, pagesJsonPath, configPath, options = {}) {
+export async function resolveAll(projectRoot, distRoot, configPath, options = {}) {
     const { write = false, clean = false, verbose = false } = options;
 
-    // Canonicalize once so both the plan and the on-disk cache get the same absolute dist
+    // Canonicalise dist
     const absDistRoot = path.resolve(distRoot);
 
-    // scan it up
-    const plan = await scanAll(projectRoot, absDistRoot, pagesJsonPath, configPath, verbose);
+    // Load + validate + resolve config paths
+    const config = await loadAndValidateConfig(projectRoot, configPath);
 
-    // keep track of real changes
+    // Scan
+    const plan = await scanAll(projectRoot, absDistRoot, config, verbose);
+
+    // Track counts
     let totalWritten = 0, totalRendered = 0, totalDeleted = 0;
 
     if (write) {
         const { totalRendered: r, totalWritten: w } = await writeFromPlan(plan, { verbose });
         totalRendered = r;
         totalWritten = w;
-        // Write the new on-disk shape with absolute dist
         saveGoblinCache(plan.root, plan.goblinCache, absDistRoot);
     }
 
@@ -36,35 +39,29 @@ export async function resolveAll(projectRoot, distRoot, pagesJsonPath, configPat
         if (cacheModified) saveGoblinCache(plan.root, plan.goblinCache, absDistRoot);
     }
 
-    // summary output
+    // Summary
     console.log(`📄 Scanned ${plan.totalScanned} files for copying.`);
     console.log(`📄 Scanned ${plan.pages.length} pages for rendering.`);
     if (write) {
         if (totalWritten > 0) console.log(`✍️  Total files copied: ${totalWritten}`);
         if (totalRendered > 0) console.log(`✍️  Total pages rendered: ${totalRendered}`);
     }
-    if (clean) {
-        if (totalDeleted > 0) console.log(`🗑️  Orphans deleted: ${totalDeleted}`);
+    if (clean && totalDeleted > 0) {
+        console.log(`🗑️  Orphans deleted: ${totalDeleted}`);
     }
 
-    // (CURRENTLY USELESS) return the result
-    return {
-        scanned: plan.totalScanned,
-        written: totalWritten,
-        rendered: totalRendered,
-        deleted: totalDeleted
-    };
+    return { scanned: plan.totalScanned, written: totalWritten, rendered: totalRendered, deleted: totalDeleted };
 }
 
 /* --------------------------------- CLI -------------------------------- */
 
 if (isCLI(import.meta.url)) {
-    const [root, dist, pages, config, ...rest] = process.argv.slice(2);
-    if (!root || !dist || !pages || !config) {
-        console.log("Usage: node resolve-all.js <projectRoot> <distRoot> <pagesJson> <configJson> [--write] [--clean] [--verbose]");
+    const [root, dist, config, ...rest] = process.argv.slice(2);
+    if (!root || !dist || !config) {
+        console.log("Usage: node resolve-all.js <projectRoot> <distRoot> <configJson> [--write] [--clean] [--verbose]");
         process.exit(1);
     }
-    resolveAll(root, dist, pages, config, {
+    resolveAll(root, dist, config, {
         write: rest.includes("--write"),
         clean: rest.includes("--clean"),
         verbose: rest.includes("--verbose"),

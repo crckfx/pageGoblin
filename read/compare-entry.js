@@ -1,5 +1,3 @@
-// tools/diff-spot-2/resolve-page.js
-
 import fs from "fs";
 import path from "path";
 import { scanDifferences } from "../copy/scan.js";

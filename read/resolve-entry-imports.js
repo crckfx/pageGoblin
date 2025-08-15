@@ -1,4 +1,3 @@
-// resolve-entry-imports.js
 import path from "path";
 import { compareEntry } from "./compare-entry.js";
 
