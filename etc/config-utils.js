@@ -38,9 +38,7 @@ export async function loadAndValidateConfig(projectRoot, configPath) {
     if (config.article.articleCardTemplatePath) {
         config.article.articleCardTemplatePath = resolveIfSet(config.article.articleCardTemplatePath);
     }
-    if (Array.isArray(config.article.styles)) {
-        config.article.styles = config.article.styles.map(resolveIfSet);
-    }
+
 
     return config;
 }

@@ -19,7 +19,7 @@ export function inflateArticlesToPages(articlesObj, config) {
 
             // Page contract (relative to project root; renderEntry resolves them):
             contentPath: path.join("articles", `${articleId}.html`),
-            outputPath: path.join("dist", "articles", articleId, "index.html"),
+            outputPath: `/articles/${articleId}/index.html`,
 
             // Article defaults (still normal Page fields; page-level overrides still win)
             templatePath: articleCfg.templatePath ?? config.templatePath,

@@ -5,7 +5,7 @@ import { isCLI } from '../etc/helpers.js';
 
 /**
  * Recursively flattens the nested pages structure into a flat array.
- * Adds inferred outputPath if missing.
+ * Adds inferred outputPath if missing (as a WEB path: "/.../index.html").
  * Tracks depth and navigation path for printing.
  */
 export function flattenPages(pages, ancestry = [], depth = 0) {
@@ -13,7 +13,9 @@ export function flattenPages(pages, ancestry = [], depth = 0) {
 
     for (const [pageId, config] of Object.entries(pages)) {
         const currentPath = [...ancestry, pageId];
-        const inferredOutputPath = path.join('dist', ...currentPath, 'index.html');
+
+        // Inferred as site-root URL (no "dist/", no OS-specific joins)
+        const inferredOutputPath = "/" + currentPath.join("/") + "/index.html";
 
         const flattened = {
             ...config,
@@ -34,6 +36,7 @@ export function flattenPages(pages, ancestry = [], depth = 0) {
 
     return result;
 }
+
 
 /**
  * (FOR CLI TEST PURPOSES)

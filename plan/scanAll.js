@@ -28,8 +28,11 @@ export async function scanAll(projectRoot, distRoot, config, verbose = false) {
     let totalScanned = 0;
 
     for (const page of pages) {
+        // ONE-TIME normalization per page: URL → absolute FS path (no regex, no helpers)
+        page.outputPath = path.resolve(dist, "." + page.outputPath);
+
         const html = scanRenderEntry(root, page, config, goblinCache);
-        html.forEach(change => expectedPaths.add(change.dstPath));
+        html.forEach(change => expectedPaths.add(change.outputPath));
         htmlChanges.push(...html);
 
         const { scanned, changes } = resolveEntryImports(root, page, expectedPaths, verbose);
