@@ -3,7 +3,7 @@ import { flattenPages } from "../read/flatten-pages.js";
 import { loadJSON } from "../etc/helpers.js";
 import { resolveEntryImports } from "../read/resolve-entry-imports.js";
 import { loadGoblinCache } from "../etc/cache-utils.js";
-import { scanRenderEntry } from "../read/scanRenderEntry.js";
+import { scanRenderEntry } from "./scanRenderEntry.js";
 import { inflateArticlesToPages } from "../adapter/articles-adapter.js";
 
 export async function scanAll(projectRoot, distRoot, config, verbose = false) {
