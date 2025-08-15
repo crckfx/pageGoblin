@@ -3,7 +3,6 @@ import ejs from 'ejs';
 import path from 'path';
 import { ensureDir, isCLI } from '../etc/helpers.js';
 
-
 // helper function to read file as utf8
 const readTextFile = (filePath) => readFile(filePath, 'utf8');
 

@@ -54,7 +54,7 @@ export async function scanAll(projectRoot, distRoot, config, verbose = false) {
 
 
 // import path from "path";
-import { compareEntry } from "../plan/compare-entry.js";
+import { compareEntry } from "../transfer/compare-entry.js";
 
 function resolveEntryImports(root, page, expectedPaths, verbose) {
     const { outputPath, imports = [], pageId } = page;
