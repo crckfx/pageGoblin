@@ -1,65 +1,58 @@
-import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
+// plan/scanEntryImports.js
+// Per-page planner (dry run): resolves declared imports and aggregates expectedPaths.
 
-export function scanDifferences(source, destination) {
-    const changes = [];
+import fs from "fs";
+import path from "path";
+import { scanDifferences } from "../transfer/diffEngine.js";
+import { logChange } from "../etc/helpers.js";
 
-    if (!fs.existsSync(source)) {
-        throw new Error(`Source not found: ${source}`);
-    }
+/**
+ * Resolve imports for a single page config (dry-run).
+ * - For each declared import (relative to project root), compute the destination
+ *   under the page's output directory, diff it, and collect expected dst paths.
+ *
+ * @param {string} absProjectRoot
+ * @param {{ outputPath:string, imports?:string[] }} pageConfig
+ * @param {{ verbose?:boolean, pageId?:string }} [options]
+ * @returns {{ pageId:string, scanned:number, changes:Array, expectedPaths:Set<string> }}
+ */
+export function scanEntryImports(absProjectRoot, pageConfig, options = {}) {
+    const { verbose = false, pageId = "" } = options;
 
-    const base = fs.statSync(source).isDirectory() ? source : path.dirname(source);
+    const imports = pageConfig.imports ?? [];
+    const outputDir = path.resolve(absProjectRoot, path.dirname(pageConfig.outputPath));
 
-    if (fs.statSync(source).isDirectory()) {
-        scanDir(source, destination, changes, base);
-    } else {
-        scanFile(source, destination, changes, base);
-    }
+    const expectedPaths = new Set();
+    const allChanges = [];
 
-    return changes;
-}
+    for (const importPath of imports) {
+        const src = path.resolve(absProjectRoot, importPath);
+        const dst = path.join(outputDir, path.basename(importPath));
 
-function scanDir(srcDir, dstDir, changes, base) {
-    const entries = fs.readdirSync(srcDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-        if (entry.name === '.' || entry.name === '..') continue;
-
-        const srcPath = path.join(srcDir, entry.name);
-        const dstPath = path.join(dstDir, entry.name);
-
-        if (entry.isDirectory()) {
-            scanDir(srcPath, dstPath, changes, base);
-        } else {
-            scanFile(srcPath, dstPath, changes, base);
+        if (!fs.existsSync(src)) {
+            // Declared source missing in project → skip this import
+            logChange({ status: "SKIP", relative: importPath }, { verbose });
+            continue;
         }
+
+        const changes = scanDifferences(src, dst);
+
+        for (const c of changes) {
+            expectedPaths.add(path.resolve(c.dstPath));
+            logChange(c, { verbose });
+        }
+
+        allChanges.push(...changes);
     }
-}
 
-function scanFile(srcPath, dstPath, changes, base) {
-    const relative = path.relative(base, srcPath);
-
-    if (!fs.existsSync(dstPath)) {
-        changes.push({ status: 'MISSING', relative, srcPath, dstPath });
-    } else if (!filesAreEqual(srcPath, dstPath)) {
-        changes.push({ status: 'DIFFERS', relative, srcPath, dstPath });
-    } else {
-        changes.push({ status: 'MATCHES', relative, srcPath, dstPath });
+    if (verbose) {
+        console.log(`📄 [${pageId}] Scanned ${allChanges.length} files.`);
     }
-}
 
-function filesAreEqual(a, b) {
-    const statA = fs.statSync(a);
-    const statB = fs.statSync(b);
-    if (statA.size !== statB.size) return false;
-
-    const hashA = hashFile(a);
-    const hashB = hashFile(b);
-    return hashA === hashB;
-}
-
-function hashFile(filePath) {
-    const buffer = fs.readFileSync(filePath);
-    return crypto.createHash('md5').update(buffer).digest('hex');
+    return {
+        pageId,
+        scanned: allChanges.length,
+        changes: allChanges,
+        expectedPaths,
+    };
 }

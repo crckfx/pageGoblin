@@ -1,16 +1,18 @@
+// plan/scanAll.js
 import path from "path";
 import { flattenPages } from "../adapter/flatten-pages.js";
 import { loadJSON } from "../etc/helpers.js";
-// import { resolveEntryImports } from "../read/resolve-entry-imports.js";
 import { loadGoblinCache } from "../etc/cache-utils.js";
 import { scanRenderEntry } from "./scanRenderEntry.js";
 import { inflateArticlesToPages } from "../adapter/articles-adapter.js";
+import { scanEntryImports } from "./scanEntryImports.js";
 
 export async function scanAll(projectRoot, distRoot, config, verbose = false) {
     const root = path.resolve(projectRoot);
     const dist = path.resolve(distRoot);
+    const goblinCache = loadGoblinCache(root);
 
-    // pagesJsonPath is guaranteed absolute by config loader
+    // pagesJsonPath is guaranteed absolute by the config loader
     const pagesMain = flattenPages(await loadJSON(config.pagesJsonPath));
 
     let articlePages = [];
@@ -20,7 +22,6 @@ export async function scanAll(projectRoot, distRoot, config, verbose = false) {
     }
 
     const pages = [...pagesMain, ...articlePages];
-    const goblinCache = loadGoblinCache(root);
 
     const expectedPaths = new Set();
     const copyChanges = [];
@@ -28,48 +29,36 @@ export async function scanAll(projectRoot, distRoot, config, verbose = false) {
     let totalScanned = 0;
 
     for (const page of pages) {
-        // ONE-TIME normalization per page: URL → absolute FS path (no regex, no helpers)
+        // ONE-TIME normalization per page: WEB path → absolute FS path in dist
+        // Example: "/a/b/index.html" → "<dist>/a/b/index.html"
         page.outputPath = path.resolve(dist, "." + page.outputPath);
 
+        // Always expect the page's HTML to exist (whether or not it needs re-render)
+        expectedPaths.add(page.outputPath);
+
+        // Plan render work for this page
         const html = scanRenderEntry(root, page, config, goblinCache);
-        html.forEach(change => expectedPaths.add(change.outputPath));
+        html.forEach((change) => expectedPaths.add(change.outputPath));
         htmlChanges.push(...html);
 
-        const { scanned, changes } = resolveEntryImports(root, page, expectedPaths, verbose);
+        // Plan transfer (imports) for this page
+        const { scanned, changes, expectedPaths: importExpected } =
+            scanEntryImports(root, page, { verbose, pageId: page.pageId });
+
         totalScanned += scanned;
         copyChanges.push(...changes);
+        importExpected.forEach((p) => expectedPaths.add(p));
     }
 
     return {
-        root, dist, pages, config,
+        root,
+        dist,
+        pages,
+        config,
         goblinCache,
         expectedPaths,
         copyChanges,
         htmlChanges,
-        totalScanned
+        totalScanned,
     };
-}
-
-
-
-
-// import path from "path";
-import { compareEntry } from "../transfer/compare-entry.js";
-
-function resolveEntryImports(root, page, expectedPaths, verbose) {
-    const { outputPath, imports = [], pageId } = page;
-    const result = compareEntry(root, page, { verbose, pageId });
-
-    // collect results
-    result.expectedPaths.forEach((p) => expectedPaths.add(p));
-    if (outputPath) expectedPaths.add(path.resolve(root, outputPath));
-
-    // expected import destinations
-    if (outputPath) {
-        const outputDir = path.resolve(root, path.dirname(outputPath));
-        for (const importPath of imports) {
-            expectedPaths.add(path.resolve(path.join(outputDir, path.basename(importPath))));
-        }
-    }
-    return result;
 }
