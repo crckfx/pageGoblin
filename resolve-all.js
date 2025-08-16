@@ -4,7 +4,7 @@ import chalk from "chalk";
 import path from "path";
 import { isCLI } from "./etc/helpers.js";
 import { saveGoblinCache } from "./etc/cache-utils.js";
-import { scanAll } from "./plan/scanAll.js";
+import { createPlan } from "./plan/createPlan.js";
 import { cleanFromPlan } from "./execute/cleanFromPlan.js";
 import { writeFromPlan } from "./execute/writeFromPlan.js";
 import { loadAndValidateConfig } from "./etc/config-utils.js";
@@ -21,7 +21,7 @@ export async function resolveAll(projectRoot, distRoot, configPath, options = {}
     const config = await loadAndValidateConfig(projectRoot, configPath);
 
     // Scan
-    const plan = await scanAll(projectRoot, absDistRoot, config, verbose);
+    const plan = await createPlan(projectRoot, absDistRoot, config, verbose);
 
     // Track counts
     let totalWritten = 0, totalRendered = 0, totalDeleted = 0;

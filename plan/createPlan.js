@@ -1,4 +1,4 @@
-// plan/scanAll.js
+// plan/createPlan.js
 import path from "path";
 import { flattenPages } from "../adapter/flatten-pages.js";
 import { loadJSON } from "../etc/helpers.js";
@@ -7,7 +7,7 @@ import { scanRenderEntry } from "./scanRenderEntry.js";
 import { inflateArticlesToPages } from "../adapter/articles-adapter.js";
 import { scanEntryImports } from "./scanEntryImports.js";
 
-export async function scanAll(projectRoot, distRoot, config, verbose = false) {
+export async function createPlan(projectRoot, distRoot, config, verbose = false) {
     const root = path.resolve(projectRoot);
     const dist = path.resolve(distRoot);
     const goblinCache = loadGoblinCache(root);
