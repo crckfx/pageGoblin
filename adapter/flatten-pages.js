@@ -15,11 +15,15 @@ export function flattenPages(pages, ancestry = [], depth = 0) {
         const currentPath = [...ancestry, pageId];
 
         // Inferred as site-root URL (no "dist/", no OS-specific joins)
-        const inferredOutputPath = "/" + currentPath.join("/") + "/index.html";
+        const inferredOutDir = "/" + currentPath.join("/");
 
         const flattened = {
             ...config,
-            outputPath: config.outputPath ?? inferredOutputPath,
+
+            // outputPath: config.outputPath ?? inferredOutputPath, // old
+            outDir: config.outDir ?? inferredOutDir,   // web directory
+            ...(config.outFile ? { outFile: config.outFile } : {}), // optional custom filename
+
             navPath: currentPath,
             navId: currentPath[0],
             depth,

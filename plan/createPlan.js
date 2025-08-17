@@ -31,14 +31,18 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
     for (const page of pages) {
         // ONE-TIME normalization per page: WEB path → absolute FS path in dist
         // Example: "/a/b/index.html" → "<dist>/a/b/index.html"
-        page.outputPath = path.resolve(dist, "." + page.outputPath);
+        // page.outputPath = path.resolve(dist, "." + page.outputPath);
+        page.outDir = path.resolve(dist, "." + page.outDir);
+        const outFile = page.outFile || "index.html";
 
-        // Always expect the page's HTML to exist (whether or not it needs re-render)
-        expectedPaths.add(page.outputPath);
+        if (page.contentPath) {
+            const htmlFile = path.join(page.outDir, outFile); // absolute file path
+            expectedPaths.add(htmlFile);
+        }
 
         // Plan render work for this page
         const html = scanRenderEntry(root, page, config, goblinCache);
-        html.forEach((change) => expectedPaths.add(change.outputPath));
+        // html.forEach((change) => expectedPaths.add(change.outputPath));
         htmlChanges.push(...html);
 
         // Plan transfer (imports) for this page

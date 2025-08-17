@@ -18,7 +18,9 @@ export function inflateArticlesToPages(articlesObj, config) {
 
             // make it like a page
             contentPath: path.join("articles", `${articleId}.html`),
-            outputPath: `/articles/${articleId}/index.html`,
+            // Location-first outputs
+            outDir: `/articles/${articleId}`,
+            ...(articleCfg.outFile ? { outFile: articleCfg.outFile } : {}),
 
             // make it specifically like a page that is an article
             templatePath: articleCfg.templatePath ?? config.templatePath,
