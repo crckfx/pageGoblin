@@ -31,7 +31,6 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
     for (const page of pages) {
         // ONE-TIME normalization per page: WEB path → absolute FS path in dist
         // Example: "/a/b/index.html" → "<dist>/a/b/index.html"
-        // page.outputPath = path.resolve(dist, "." + page.outputPath);
         page.outDir = path.resolve(dist, "." + page.outDir);
         const outFile = page.outFile || "index.html";
 
@@ -42,7 +41,6 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
 
         // Plan render work for this page
         const html = scanRenderEntry(root, page, config, goblinCache);
-        // html.forEach((change) => expectedPaths.add(change.outputPath));
         htmlChanges.push(...html);
 
         // Plan transfer (imports) for this page

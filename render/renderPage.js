@@ -1,3 +1,4 @@
+// render/renderPage.js
 import { readFile, writeFile } from 'fs/promises';
 import ejs from 'ejs';
 import path from 'path';
@@ -9,12 +10,13 @@ const readTextFile = (filePath) => readFile(filePath, 'utf8');
 // main function
 export async function renderPage({
     title,
-    pagePath,
+    contentPath,        // was: pagePath
     templatePath,
     headContentPath,
     headerPath,
     footerPath,
-    outputPath,
+    outDir,             // new: absolute dir (normalised in createPlan)
+    outFile,            // new: filename (optional; defaults below)
     scripts,
     modules,
     styles,
@@ -23,12 +25,18 @@ export async function renderPage({
     articleId,
     image,
 }) {
+    // resolve destination from outDir/outFile (filename only; default index.html)
+    const dstPath = path.join(
+        path.isAbsolute(outDir) ? outDir : path.resolve(outDir || ''),
+        path.basename(outFile || 'index.html')
+    );
+
     // define the main variables
     const [head, header, footer, body] = await Promise.all([
         readTextFile(headContentPath),
         readTextFile(headerPath),
         readTextFile(footerPath),
-        readTextFile(pagePath),
+        readTextFile(contentPath),
     ]);
 
     // this is meant to be an optional build component. if it's empty we should simply not pass it to ejs.
@@ -63,22 +71,23 @@ export async function renderPage({
     });
 
     // save the file
-    ensureDir(path.dirname(outputPath));
-    await writeFile(outputPath, html);
-    console.log(`Rendered ${outputPath}`);
+    ensureDir(path.dirname(dstPath));
+    await writeFile(dstPath, html);
+    console.log(`Rendered ${dstPath}`);
 }
 
-// CLI entry point (outdated)
+// CLI entry point (updated for outDir/outFile)
 if (isCLI(import.meta.url)) {
 
     const args = process.argv.slice(2);
-    const [pagePath, templatePath, headContentPath, headerPath, footerPath, outputPath] = args;
+    // node renderPage.js <contentPath> <templatePath> <head> <header> <footer> <outDir> [outFile]
+    const [contentPath, templatePath, headContentPath, headerPath, footerPath, outDir, outFile = 'index.html'] = args;
 
-    if (!pagePath || !templatePath || !headContentPath || !headerPath || !footerPath || !outputPath) {
+    if (!contentPath || !templatePath || !headContentPath || !headerPath || !footerPath || !outDir) {
         console.log("error - one of your args is missing");
     } else {
         await renderPage({
-            pagePath, templatePath, headContentPath, headerPath, footerPath, outputPath
+            contentPath, templatePath, headContentPath, headerPath, footerPath, outDir, outFile
         });
     }
 }

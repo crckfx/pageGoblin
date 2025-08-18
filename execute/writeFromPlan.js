@@ -1,4 +1,4 @@
-
+// execute/writeFromPlan.js
 import path from "path";
 
 // import { applyChanges } from "../copy/write.js";
@@ -17,7 +17,11 @@ export async function writeFromPlan(plan, { verbose = false } = {}) {
 
     // HTML renders
     for (const { dstPath, inputHashes, cacheKey } of htmlChanges) {
-        const page = pages.find(p => path.resolve(root, p.outputPath) === dstPath);
+        // match job to page by location-first target: outDir / (outFile || index.html)
+        const page = pages.find((p) => {
+            const target = path.join(p.outDir, p.outFile || "index.html");
+            return target === dstPath;
+        });
         if (!page) continue;
 
         const didRender = await renderEntry(root, page, config, verbose);
@@ -29,7 +33,6 @@ export async function writeFromPlan(plan, { verbose = false } = {}) {
             if (verbose) console.log(`Rendered ${dstPath}`);
         }
     }
-
 
     // Asset copies
     const pending = copyChanges.filter(c => c.status !== "MATCHES");
@@ -43,21 +46,21 @@ export async function writeFromPlan(plan, { verbose = false } = {}) {
     return { totalRendered, totalWritten };
 }
 
-import fs from 'fs';
-// import path from 'path';
-import { ensureDir } from '../etc/helpers.js';
+import fs from "fs";
+// import path from "path";
+import { ensureDir } from "../etc/helpers.js";
 
 function applyChanges(changes) {
     const written = [];
 
     for (const change of changes) {
-        if (change.status === 'MATCHES') continue;
+        if (change.status === "MATCHES") continue;
 
         ensureDir(path.dirname(change.dstPath));
         fs.copyFileSync(change.srcPath, change.dstPath);
 
         written.push({
-            status: 'WRITTEN',
+            status: "WRITTEN",
             relative: change.relative,
             srcPath: change.srcPath,
             dstPath: change.dstPath,
@@ -71,20 +74,21 @@ function applyChanges(changes) {
 // import fs from "fs";
 import chalk from "chalk";
 import { renderPage } from "../render/renderPage.js";
+
 async function renderEntry(root, page, config, verbose) {
     const {
-        title, contentPath, outputPath, pageId,
+        title, contentPath, outDir, outFile, pageId,
         imports = [], styles = [], scripts = [], modules = [],
         navPath = null, articleId = null, image = null,
     } = page;
 
-    if (!contentPath || !outputPath) {
-        if (verbose) console.warn(chalk.gray(`[SKIP] ${pageId}: no contentPath or outputPath`));
+    if (!contentPath || !outDir) {
+        if (verbose) console.warn(chalk.gray(`[SKIP] ${pageId}: no contentPath or outDir`));
         return false;
     }
 
-    const pagePath = path.resolve(root, contentPath);
-    if (!fs.existsSync(pagePath)) {
+    const contentAbs = path.resolve(root, contentPath);
+    if (!fs.existsSync(contentAbs)) {
         console.warn(chalk.red(`[MISSING] ${pageId}: ${contentPath}`));
         return false;
     }
@@ -99,8 +103,9 @@ async function renderEntry(root, page, config, verbose) {
 
     await renderPage({
         title,
-        pagePath,
-        outputPath: path.resolve(root, outputPath),
+        contentPath: contentAbs,
+        outDir: path.isAbsolute(outDir) ? outDir : path.resolve(root, outDir),
+        outFile: outFile || "index.html",
         headContentPath,
         headerPath,
         footerPath,

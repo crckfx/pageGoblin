@@ -8,11 +8,11 @@ import { logChange } from "../etc/helpers.js";
 
 /**
  * Resolve imports for a single page config (dry-run).
- * - For each declared import (relative to project root), compute the destination
- *   under the page's output directory, diff it, and collect expected dst paths.
+ * For each declared import (project-relative path to file/dir), compute the
+ * destination under the page's output directory, diff it, and collect expected dst paths.
  *
  * @param {string} absProjectRoot
- * @param {{ outputPath:string, imports?:string[] }} pageConfig
+ * @param {{ outDir:string, imports?:string[] }} pageConfig   // outDir is absolute (normalized in createPlan)
  * @param {{ verbose?:boolean, pageId?:string }} [options]
  * @returns {{ pageId:string, scanned:number, changes:Array, expectedPaths:Set<string> }}
  */
@@ -20,14 +20,15 @@ export function scanEntryImports(absProjectRoot, pageConfig, options = {}) {
     const { verbose = false, pageId = "" } = options;
 
     const imports = pageConfig.imports ?? [];
-    const outputDir = path.resolve(absProjectRoot, path.dirname(pageConfig.outputPath));
+    // Use location-first destination directory (already absolute)
+    const outputDir = pageConfig.outDir;
 
     const expectedPaths = new Set();
     const allChanges = [];
 
     for (const importPath of imports) {
-        const src = path.resolve(absProjectRoot, importPath);
-        const dst = path.join(outputDir, path.basename(importPath));
+        const src = path.resolve(absProjectRoot, importPath);                // project-relative source
+        const dst = path.join(outputDir, path.basename(importPath));         // land under outDir
 
         if (!fs.existsSync(src)) {
             // Declared source missing in project → skip this import
@@ -38,6 +39,7 @@ export function scanEntryImports(absProjectRoot, pageConfig, options = {}) {
         const changes = scanDifferences(src, dst);
 
         for (const c of changes) {
+            // c.dstPath may already be absolute; resolve() is idempotent for absolutes
             expectedPaths.add(path.resolve(c.dstPath));
             logChange(c, { verbose });
         }
