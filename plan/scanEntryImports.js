@@ -39,7 +39,6 @@ export function scanEntryImports(absProjectRoot, pageConfig, options = {}) {
         const changes = scanDifferences(src, dst);
 
         for (const c of changes) {
-            // c.dstPath may already be absolute; resolve() is idempotent for absolutes
             expectedPaths.add(path.resolve(c.dstPath));
             logChange(c, { verbose });
         }
