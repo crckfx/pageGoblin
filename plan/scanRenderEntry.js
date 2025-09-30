@@ -40,25 +40,24 @@ export function scanRenderEntry(root, page, config, goblinCache) {
             inputHashes[key] = null;
         }
     }
-    // Spot test: handle contentPath as single file or array
-    let pageContentHash = null;
-    if (page.contentPath) {
-        const paths = Array.isArray(page.contentPath) ? page.contentPath : [page.contentPath];
-        let combinedContent = "";
-        for (let i = 0; i < paths.length; i++) {
-            try {
-                const abs = path.resolve(root, paths[i]);
-                combinedContent += fs.readFileSync(abs, "utf8") + "\n";
-            } catch {
-                combinedContent += ""; // fail silently like the other hashes
-            }
+    
+    // page.contentPath is guaranteed to be an array
+    let combinedContent = "";
+    for (let i = 0; i < page.contentPath.length; i++) {
+        try {
+            const abs = path.resolve(root, page.contentPath[i]);
+            combinedContent += fs.readFileSync(abs, "utf8") + "\n";
+        } catch {
+            combinedContent += "";
         }
-        pageContentHash = hashText(combinedContent);
     }
-    // attach
+    const pageContentHash = hashText(combinedContent);
     inputHashes.page = pageContentHash;
 
-
+    // scripts, styles, modules are guaranteed arrays
+    for (const key of ["scripts", "styles", "modules"]) {
+        inputHashes[key] = hashText(JSON.stringify(page[key]));
+    }
 
 
     // Compare to cache (dry run: do not mutate cache here)

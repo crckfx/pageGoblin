@@ -19,10 +19,8 @@ import { logChange } from "../etc/helpers.js";
 export function scanEntryImports(absProjectRoot, pageConfig, options = {}) {
     const { verbose = false, pageId = "" } = options;
 
-    let imports = pageConfig.imports ?? [];
-    if (!Array.isArray(imports)) {
-        imports = [imports];
-    }    
+    const imports = pageConfig.imports; // always an array (post-normalise)
+
     // Use location-first destination directory (already absolute)
     const outputDir = pageConfig.outDir;
 

@@ -53,7 +53,10 @@ by default, an entry's folder assumes the same name as its JSON key. however, sp
         "outDir": "/someLocation/someSpecificLocation"
     },
     "homepage": {                   // 4.
-        "contentPath": "home_content.html",
+        "contentPath": [
+            "home_content.html",
+            "extra_home_content.html"
+        ],
         "outDir": "/",
         "imports": [
             "assets/favicon.ico",
@@ -66,7 +69,7 @@ in this example:
 1.   `someLocation` renders `/someLocation/index.html`
 2.   `someNestedLocation` renders its own `index.html` and imports `some_styles.css`
 3.   `someSpecialPage` renders `/someLocation/someSpecificLocation/index.html`
-4.   `homepage` renders a root `index.html` imports a file and a folder
+4.   `homepage` renders a root `index.html` from multiple contentPaths, and imports a file and a folder
 
 the output would look like:
 ```text

@@ -1,4 +1,5 @@
 import path from "path";
+import { ensureArray } from "../etc/helpers.js";
 
 /**
  * turn articles.json {id: {title, image, blurb}} into Page-like entries.
@@ -16,8 +17,15 @@ export function inflateArticlesToPages(articlesObj, config) {
             image: meta.image,
             blurb: meta.blurb ?? "",
 
+            scripts: ensureArray(articleCfg.scripts),
+            modules: ensureArray(articleCfg.modules),
+            styles: ensureArray(articleCfg.styles),
+            contentPath: ensureArray(path.join("articles", `${articleId}.html`)),
+            imports: ensureArray(articleCfg.imports),
+
+
             // make it like a page
-            contentPath: path.join("articles", `${articleId}.html`),
+            // contentPath: path.join("articles", `${articleId}.html`),
             // Location-first outputs
             outDir: `/articles/${articleId}`,
             ...(articleCfg.outFile ? { outFile: articleCfg.outFile } : {}),

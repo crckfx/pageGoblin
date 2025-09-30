@@ -65,3 +65,9 @@ export async function loadJSON(filePath) {
     const text = await readFile(filePath, 'utf8');
     return JSON.parse(text);
 }
+
+
+export function ensureArray(x) {
+    if (x == null) return [];
+    return Array.isArray(x) ? x : [x];
+}
