@@ -70,15 +70,13 @@ function applyChanges(changes) {
     return written;
 }
 
-// import path from "path";
-// import fs from "fs";
 import chalk from "chalk";
 import { renderPage } from "../render/renderPage.js";
 
 async function renderEntry(root, page, config, verbose) {
     const {
         title, contentPath, outDir, outFile, pageId,
-        imports = [], styles = [], scripts = [], modules = [],
+        styles = [], scripts = [], modules = [],
         navPath = null, articleId = null, image = null,
     } = page;
 
@@ -87,10 +85,19 @@ async function renderEntry(root, page, config, verbose) {
         return false;
     }
 
-    const contentAbs = path.resolve(root, contentPath);
-    if (!fs.existsSync(contentAbs)) {
-        console.warn(chalk.red(`[MISSING] ${pageId}: ${contentPath}`));
-        return false;
+
+    // handle multiple contentPaths
+    let contentAbs = [];
+    if (page.contentPath) {
+        const paths = Array.isArray(page.contentPath) ? page.contentPath : [page.contentPath];
+        for (let i = 0; i < paths.length; i++) {
+            const abs = path.resolve(root, paths[i]);
+            if (!fs.existsSync(abs)) {
+                console.warn(chalk.red(`[MISSING] ${pageId}: ${paths[i]}`));
+                return false;
+            }
+            contentAbs.push(abs);
+        }
     }
 
     const templatePath = path.resolve(root, page.templatePath ?? config.templatePath);
@@ -103,7 +110,7 @@ async function renderEntry(root, page, config, verbose) {
 
     await renderPage({
         title,
-        contentPath: contentAbs,
+        contentPath: contentAbs, // now an array
         outDir: path.isAbsolute(outDir) ? outDir : path.resolve(root, outDir),
         outFile: outFile || "index.html",
         headContentPath,

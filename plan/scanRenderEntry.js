@@ -21,7 +21,7 @@ export function scanRenderEntry(root, page, config, goblinCache) {
     // Gather render-relevant inputs (project-relative to root)
     const inputFiles = {
         template: page.templatePath ?? config.templatePath,
-        page: page.contentPath,
+        // page: page.contentPath, // <--- zapped; gone
         head: page.headContentPath ?? config.headContentPath,
         header: page.headerPath ?? config.headerPath,
         footer: page.footerPath ?? config.footerPath,
@@ -40,6 +40,26 @@ export function scanRenderEntry(root, page, config, goblinCache) {
             inputHashes[key] = null;
         }
     }
+    // Spot test: handle contentPath as single file or array
+    let pageContentHash = null;
+    if (page.contentPath) {
+        const paths = Array.isArray(page.contentPath) ? page.contentPath : [page.contentPath];
+        let combinedContent = "";
+        for (let i = 0; i < paths.length; i++) {
+            try {
+                const abs = path.resolve(root, paths[i]);
+                combinedContent += fs.readFileSync(abs, "utf8") + "\n";
+            } catch {
+                combinedContent += ""; // fail silently like the other hashes
+            }
+        }
+        pageContentHash = hashText(combinedContent);
+    }
+    // attach
+    inputHashes.page = pageContentHash;
+
+
+
 
     // Compare to cache (dry run: do not mutate cache here)
     const prev = goblinCache[cacheKey];
