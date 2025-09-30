@@ -11,12 +11,12 @@ npm install
 this file specifies the essentials
 ```json
 {
-    "pagesJsonPath": "pages.json",
-    "globalHtmlPath": "components/global.html",
-    "headContentPath": "components/head-content.html",
+    "pagesJsonPath": "pages.json", // required
+    "templatePath": "templates/page.ejs", // default render template; can be overridden per-page
+    "globalHtmlPath": "components/global.html", // extra HTML to "always be added" 
+    "headContentPath": "components/head-content.html", // 
     "headerPath": "components/header/header.html",
     "footerPath": "components/footer/footer.html",
-    "templatePath": "templates/page.ejs",
 }
 ```
 

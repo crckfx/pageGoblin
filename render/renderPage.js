@@ -10,13 +10,13 @@ const readTextFile = (filePath) => readFile(filePath, 'utf8');
 // main function
 export async function renderPage({
     title,
-    contentPath,        // was: pagePath
+    contentPath,
     templatePath,
     headContentPath,
     headerPath,
     footerPath,
-    outDir,             // new: absolute dir (normalised in createPlan)
-    outFile,            // new: filename (optional; defaults below)
+    outDir,
+    outFile,
     scripts,
     modules,
     styles,
@@ -30,14 +30,25 @@ export async function renderPage({
         path.isAbsolute(outDir) ? outDir : path.resolve(outDir || ''),
         path.basename(outFile || 'index.html')
     );
-
+    
     // define the main variables
-    const [head, header, footer, body] = await Promise.all([
+    const [head, header, footer] = await Promise.all([
         readTextFile(headContentPath),
         readTextFile(headerPath),
         readTextFile(footerPath),
-        readTextFile(contentPath),
+        // readTextFile(contentPath),
     ]);
+    // construct body (handle multiple contentPaths)
+    let body = "";
+    if (contentPath != null) {
+        const paths = Array.isArray(contentPath) ? contentPath : [contentPath];
+        let combined = "";
+        for (let i = 0; i < paths.length; i++) {
+            const text = await readTextFile(paths[i]);
+            combined += text + "\n";
+        }
+        body = combined;
+    }
 
     // this is meant to be an optional build component. if it's empty we should simply not pass it to ejs.
     const global = globalHtmlPath ? await readTextFile(globalHtmlPath) : null;
@@ -80,7 +91,6 @@ export async function renderPage({
 if (isCLI(import.meta.url)) {
 
     const args = process.argv.slice(2);
-    // node renderPage.js <contentPath> <templatePath> <head> <header> <footer> <outDir> [outFile]
     const [contentPath, templatePath, headContentPath, headerPath, footerPath, outDir, outFile = 'index.html'] = args;
 
     if (!contentPath || !templatePath || !headContentPath || !headerPath || !footerPath || !outDir) {
