@@ -3,6 +3,7 @@ import { ensureArray } from "../etc/helpers.js";
  * Recursively flattens the nested pages structure into a flat array.
  * Adds inferred outDir if missing (as a WEB path: "/.../index.html").
  * Tracks depth and navigation path for printing.
+ * Converts single/multi options to arrays
  */
 export function flattenPages(pages, ancestry = [], depth = 0) {
     const result = [];
@@ -18,15 +19,13 @@ export function flattenPages(pages, ancestry = [], depth = 0) {
             outDir: config.outDir ?? inferredOutDir,   // web directory
             ...(config.outFile ? { outFile: config.outFile } : {}), // optional custom filename
 
+            contentPath: ensureArray(config.contentPath),
+            imports: ensureArray(config.imports),
             scripts: ensureArray(config.scripts),
             modules: ensureArray(config.modules),
             styles: ensureArray(config.styles),
 
-            contentPath: ensureArray(config.contentPath),
-            imports: ensureArray(config.imports),
-
             navPath: currentPath,
-            navId: currentPath[0],
             depth,
             pageId,
         };

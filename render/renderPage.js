@@ -36,7 +36,6 @@ export async function renderPage({
         readTextFile(headContentPath),
         readTextFile(headerPath),
         readTextFile(footerPath),
-        // readTextFile(contentPath),
     ]);
     // construct body (handle multiple contentPaths)
     let body = "";
@@ -78,7 +77,7 @@ export async function renderPage({
         global,
         navPath,
         articleId,
-        image
+        image,
     });
 
     // save the file
