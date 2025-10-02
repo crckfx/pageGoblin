@@ -25,12 +25,18 @@ export async function loadAndValidateConfig(projectRoot, configPath) {
 
     config.pagesJsonPath = resolveIfSet(config.pagesJsonPath);
     config.articlesJsonPath = resolveIfSet(config.articlesJsonPath);
-    config.headContentPath = resolveIfSet(config.headContentPath);
-    config.headerPath = resolveIfSet(config.headerPath);
-    config.footerPath = resolveIfSet(config.footerPath);
     config.templatePath = resolveIfSet(config.templatePath);
-    config.globalHtmlPath = resolveIfSet(config.globalHtmlPath);
     config.article = config.article || {};
+
+
+    if (config.fragments) {
+        const normalized = {};
+        for (const [k, v] of Object.entries(config.fragments)) {
+            normalized[k] = resolveIfSet(v);
+        }
+        config.fragments = normalized;
+    }
+
 
     if (config.article.templatePath) {
         config.article.templatePath = resolveIfSet(config.article.templatePath);

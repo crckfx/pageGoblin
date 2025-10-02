@@ -12,15 +12,12 @@ export async function renderPage({
     title,
     contentPath,
     templatePath,
-    headContentPath,
-    headerPath,
-    footerPath,
     outDir,
     outFile,
+    fragments = {},
     scripts,
     modules,
     styles,
-    globalHtmlPath,
     navPath,
     articleId,
     image,
@@ -30,13 +27,7 @@ export async function renderPage({
         path.isAbsolute(outDir) ? outDir : path.resolve(outDir || ''),
         path.basename(outFile || 'index.html')
     );
-    
-    // define the main variables
-    const [head, header, footer] = await Promise.all([
-        readTextFile(headContentPath),
-        readTextFile(headerPath),
-        readTextFile(footerPath),
-    ]);
+
     // construct body (handle multiple contentPaths)
     let body = "";
     if (contentPath != null) {
@@ -49,8 +40,12 @@ export async function renderPage({
         body = combined;
     }
 
-    // this is meant to be an optional build component. if it's empty we should simply not pass it to ejs.
-    const global = globalHtmlPath ? await readTextFile(globalHtmlPath) : null;
+    // resolve fragments generically (header, footer, etc.)
+    const resolvedFragments = {};
+    for (const [key, filePath] of Object.entries(fragments)) {
+        if (!filePath) continue;
+        resolvedFragments[key] = await readTextFile(filePath);
+    }
 
     const scriptTags = (Array.isArray(scripts) ? scripts : [])
         .map(src => `<script src="${src}"></script>`)
@@ -67,14 +62,11 @@ export async function renderPage({
     // create the html
     const html = await ejs.renderFile(templatePath, {
         title: title ?? 'Untitled Page',
-        head,
-        header,
-        footer,
         body,
+        ...resolvedFragments,
         scripts: scriptTags,
         modules: moduleTags,
         styles: styleTags,
-        global,
         navPath,
         articleId,
         image,
@@ -86,7 +78,7 @@ export async function renderPage({
     console.log(`Rendered ${dstPath}`);
 }
 
-// CLI entry point (updated for outDir/outFile)
+// CLI entry point (BROKEN by fragments)
 if (isCLI(import.meta.url)) {
 
     const args = process.argv.slice(2);

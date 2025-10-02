@@ -101,29 +101,21 @@ async function renderEntry(root, page, config, verbose) {
     }
 
     const templatePath = path.resolve(root, page.templatePath ?? config.templatePath);
-    const headContentPath = path.resolve(root, page.headContentPath ?? config.headContentPath);
-    const headerPath = path.resolve(root, page.headerPath ?? config.headerPath);
-    const footerPath = path.resolve(root, page.footerPath ?? config.footerPath);
-    const globalHtmlPath = (page.globalHtmlPath ?? config.globalHtmlPath)
-        ? path.resolve(root, page.globalHtmlPath ?? config.globalHtmlPath)
-        : null;
 
     await renderPage({
         title,
         contentPath: contentAbs, // now an array
         outDir: path.isAbsolute(outDir) ? outDir : path.resolve(root, outDir),
         outFile: outFile || "index.html",
-        headContentPath,
-        headerPath,
-        footerPath,
         templatePath,
         scripts,
         modules,
         styles,
-        globalHtmlPath,
+        // globalHtmlPath,
         navPath,
         articleId,
         image,
+        fragments: page.fragments || {}         // pass through exactly as stored in page/config
     });
 
     return true;

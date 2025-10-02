@@ -71,3 +71,9 @@ export function ensureArray(x) {
     if (x == null) return [];
     return Array.isArray(x) ? x : [x];
 }
+
+
+// helper function to read file as utf8
+export async function readTextFile(filePath) {
+    return readFile(filePath, "utf8");
+}
