@@ -23,9 +23,6 @@ export function inflateArticlesToPages(articlesObj, config) {
             contentPath: ensureArray(path.join("articles", `${articleId}.html`)),
             imports: ensureArray(articleCfg.imports),
 
-
-            // make it like a page
-            // contentPath: path.join("articles", `${articleId}.html`),
             // Location-first outputs
             outDir: `/articles/${articleId}`,
             ...(articleCfg.outFile ? { outFile: articleCfg.outFile } : {}),

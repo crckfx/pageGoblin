@@ -111,7 +111,6 @@ async function renderEntry(root, page, config, verbose) {
         scripts,
         modules,
         styles,
-        // globalHtmlPath,
         navPath,
         articleId,
         image,

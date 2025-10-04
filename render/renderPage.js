@@ -2,10 +2,7 @@
 import { readFile, writeFile } from 'fs/promises';
 import ejs from 'ejs';
 import path from 'path';
-import { ensureDir, isCLI } from '../etc/helpers.js';
-
-// helper function to read file as utf8
-const readTextFile = (filePath) => readFile(filePath, 'utf8');
+import { ensureDir, readAndJoinTextFiles, readTextFile, resolveFragments, wrapTags } from '../etc/helpers.js';
 
 // main function
 export async function renderPage({
@@ -28,36 +25,12 @@ export async function renderPage({
         path.basename(outFile || 'index.html')
     );
 
-    // construct body (handle multiple contentPaths)
-    let body = "";
-    if (contentPath != null) {
-        const paths = Array.isArray(contentPath) ? contentPath : [contentPath];
-        let combined = "";
-        for (let i = 0; i < paths.length; i++) {
-            const text = await readTextFile(paths[i]);
-            combined += text + "\n";
-        }
-        body = combined;
-    }
+    const body = await readAndJoinTextFiles(contentPath);
+    const resolvedFragments = await resolveFragments(fragments);
 
-    // resolve fragments generically (header, footer, etc.)
-    const resolvedFragments = {};
-    for (const [key, filePath] of Object.entries(fragments)) {
-        if (!filePath) continue;
-        resolvedFragments[key] = await readTextFile(filePath);
-    }
-
-    const scriptTags = (Array.isArray(scripts) ? scripts : [])
-        .map(src => `<script src="${src}"></script>`)
-        .join('\n');
-
-    const moduleTags = (Array.isArray(modules) ? modules : [])
-        .map(src => `<script type="module" src="${src}"></script>`)
-        .join('\n');
-
-    const styleTags = (Array.isArray(styles) ? styles : [])
-        .map(href => `<link rel="stylesheet" href="${href}">`)
-        .join('\n');
+    const scriptTags = wrapTags(scripts, src => `<script src="${src}"></script>`);
+    const moduleTags = wrapTags(modules, src => `<script type="module" src="${src}"></script>`);
+    const styleTags = wrapTags(styles, href => `<link rel="stylesheet" href="${href}">`);
 
     // create the html
     const html = await ejs.renderFile(templatePath, {
@@ -76,19 +49,4 @@ export async function renderPage({
     ensureDir(path.dirname(dstPath));
     await writeFile(dstPath, html);
     console.log(`Rendered ${dstPath}`);
-}
-
-// CLI entry point (BROKEN by fragments)
-if (isCLI(import.meta.url)) {
-
-    const args = process.argv.slice(2);
-    const [contentPath, templatePath, headContentPath, headerPath, footerPath, outDir, outFile = 'index.html'] = args;
-
-    if (!contentPath || !templatePath || !headContentPath || !headerPath || !footerPath || !outDir) {
-        console.log("error - one of your args is missing");
-    } else {
-        await renderPage({
-            contentPath, templatePath, headContentPath, headerPath, footerPath, outDir, outFile
-        });
-    }
 }

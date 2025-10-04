@@ -12,6 +12,7 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
     const dist = path.resolve(distRoot);
     const goblinCache = loadGoblinCache(root);
 
+    
     // pagesJsonPath is guaranteed absolute by the config loader
     const pagesMain = flattenPages(await loadJSON(config.pagesJsonPath));
 
