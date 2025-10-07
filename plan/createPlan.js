@@ -30,9 +30,9 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
 
     for (const page of allPages) {
         page.outDir = path.resolve(dist, "." + page.outDir);
-        const outFile = page.outFile || "index.html";
-
+        
         if (page.contentPath) {
+            const outFile = page.outFile || "index.html";
             const htmlFile = path.join(page.outDir, outFile);
             expectedPaths.add(htmlFile);
         }

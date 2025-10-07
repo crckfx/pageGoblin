@@ -5,7 +5,7 @@ import { hashText } from "../etc/cache-utils.js";
 
 export function scanRenderEntry(root, page, config, goblinCache) {
     // No HTML to render for this entry
-    if (!page.contentPath) return [];
+    if (!page.contentPath || page.contentPath.length === 0) return [];
 
     // Resolve destination file (absolute)
     const outFile = path.basename(page.outFile || "index.html"); // guard against path segments
