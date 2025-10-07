@@ -6,45 +6,39 @@ export async function loadAndValidateConfig(projectRoot, configPath) {
     const absProjectRoot = path.resolve(projectRoot);
     const absConfigPath = path.resolve(absProjectRoot, configPath);
 
-    if (!existsSync(absConfigPath)) {
+    if (!existsSync(absConfigPath))
         throw new Error(`Config file does not exist: ${absConfigPath}`);
-    }
 
-    // Load + merge defaults
-    const rawConfig = await loadJSON(absConfigPath);
-    const config = rawConfig.default ? { ...rawConfig, ...rawConfig.default } : rawConfig;
-    delete config.default;
+    const config = await loadJSON(absConfigPath);
 
-    // Mandatory: pagesJsonPath
-    if (!config.pagesJsonPath || typeof config.pagesJsonPath !== "string") {
-        throw new Error(`Missing or invalid "pagesJsonPath" in config: ${absConfigPath}`);
-    }
-
-    // Resolve all known paths relative to project root
     const resolveIfSet = (p) => (p ? path.resolve(absProjectRoot, p) : null);
 
-    config.pagesJsonPath = resolveIfSet(config.pagesJsonPath);
-    config.articlesJsonPath = resolveIfSet(config.articlesJsonPath);
-    config.templatePath = resolveIfSet(config.templatePath);
-    config.article = config.article || {};
-
-
+    // Resolve fragments
     if (config.fragments) {
-        const normalized = {};
-        for (const [k, v] of Object.entries(config.fragments)) {
-            normalized[k] = resolveIfSet(v);
+        for (const [k, v] of Object.entries(config.fragments))
+            config.fragments[k] = resolveIfSet(v);
+    }
+
+    // Resolve profile paths
+    if (config.profiles) {
+        for (const [name, profile] of Object.entries(config.profiles)) {
+            if (profile.templatePath)
+                profile.templatePath = resolveIfSet(profile.templatePath);
+
+            if (profile.outDirRule)
+                profile.outDirRule = profile.outDirRule.replaceAll("\\", "/");
         }
-        config.fragments = normalized;
     }
 
-
-    if (config.article.templatePath) {
-        config.article.templatePath = resolveIfSet(config.article.templatePath);
+    // Resolve sources
+    if (Array.isArray(config.sources)) {
+        config.sources = config.sources.map((src) => ({
+            profile: src.profile,
+            path: resolveIfSet(src.path)
+        }));
+    } else {
+        throw new Error(`Missing or invalid "sources" array in config`);
     }
-    if (config.article.articleCardTemplatePath) {
-        config.article.articleCardTemplatePath = resolveIfSet(config.article.articleCardTemplatePath);
-    }
-
 
     return config;
 }

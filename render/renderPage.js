@@ -2,7 +2,8 @@
 import { readFile, writeFile } from 'fs/promises';
 import ejs from 'ejs';
 import path from 'path';
-import { ensureDir, readAndJoinTextFiles, readTextFile, resolveFragments, wrapTags } from '../etc/helpers.js';
+import { ensureDir, readAndJoinTextFiles } from '../etc/helpers.js';
+import { resolveFragments, wrapTags } from '../etc/data-utils.js';
 
 // main function
 export async function renderPage({
@@ -12,18 +13,15 @@ export async function renderPage({
     outDir,
     outFile,
     fragments = {},
-    scripts,
-    modules,
-    styles,
+    scripts,    // source paths at this point
+    modules,    // source paths at this point
+    styles,     // source paths at this point
     navPath,
-    articleId,
     image,
+    pageId
 }) {
     // resolve destination from outDir/outFile (filename only; default index.html)
-    const dstPath = path.join(
-        path.isAbsolute(outDir) ? outDir : path.resolve(outDir || ''),
-        path.basename(outFile || 'index.html')
-    );
+    const dstPath = path.join(path.resolve(outDir || ''), path.basename(outFile || 'index.html'));
 
     const body = await readAndJoinTextFiles(contentPath);
     const resolvedFragments = await resolveFragments(fragments);
@@ -41,7 +39,7 @@ export async function renderPage({
         modules: moduleTags,
         styles: styleTags,
         navPath,
-        articleId,
+        pageId,
         image,
     });
 

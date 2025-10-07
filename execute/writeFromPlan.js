@@ -77,14 +77,13 @@ async function renderEntry(root, page, config, verbose) {
     const {
         title, contentPath, outDir, outFile, pageId,
         styles = [], scripts = [], modules = [],
-        navPath = null, articleId = null, image = null,
+        navPath = null, image = null,
     } = page;
 
     if (!contentPath || !outDir) {
         if (verbose) console.warn(chalk.gray(`[SKIP] ${pageId}: no contentPath or outDir`));
         return false;
     }
-
 
     // handle multiple contentPaths
     let contentAbs = [];
@@ -112,8 +111,8 @@ async function renderEntry(root, page, config, verbose) {
         modules,
         styles,
         navPath,
-        articleId,
         image,
+        pageId,
         fragments: page.fragments || {}         // pass through exactly as stored in page/config
     });
 

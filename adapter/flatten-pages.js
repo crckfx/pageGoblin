@@ -1,40 +1,60 @@
 import { ensureArray } from "../etc/helpers.js";
+
 /**
- * Recursively flattens the nested pages structure into a flat array.
- * Adds inferred outDir if missing (as a WEB path: "/.../index.html").
- * Tracks depth and navigation path for printing.
- * Converts single/multi options to arrays
+ * Recursively flattens a nested structure into page-like entries.
+ * Applies profile-level rules (contentRule, outDirRule, templatePath, styles).
  */
-export function flattenPages(pages, ancestry = [], depth = 0) {
+export function flattenPages(pages, ancestry = [], depth = 0, profile = {}) {
     const result = [];
 
     for (const [pageId, config] of Object.entries(pages)) {
         const currentPath = [...ancestry, pageId];
+        const navPath = currentPath.join("/");
 
-        // Inferred as site-root URL (no "dist/", no OS-specific joins)
-        const inferredOutDir = "/" + currentPath.join("/");
+        // infer contentPath
+        let contentPath;
+        if (config.contentPath) {
+            contentPath = ensureArray(config.contentPath);
+        } else if (profile.contentRule) {
+            contentPath = [
+                profile.contentRule
+                    .replace(/\{id\}/g, pageId)
+                    .replace(/\{navPath\}/g, navPath)
+            ];
+        } else {
+            contentPath = [];
+        }
+
+        // infer outDir
+        const inferredOutDir = "/" + navPath;
+        const outDirFromRule = profile.outDirRule
+            ? profile.outDirRule
+                .replace(/\{id\}/g, pageId)
+                .replace(/\{navPath\}/g, navPath)
+            : null;
+
+
+
 
         const flattened = {
             ...config,
-            outDir: config.outDir ?? inferredOutDir,   // web directory
-            ...(config.outFile ? { outFile: config.outFile } : {}), // optional custom filename
-
-            contentPath: ensureArray(config.contentPath),
-            imports: ensureArray(config.imports),
-            scripts: ensureArray(config.scripts),
-            modules: ensureArray(config.modules),
-            styles: ensureArray(config.styles),
-
-            navPath: currentPath,
-            depth,
             pageId,
+            outDir: config.outDir ?? outDirFromRule ?? inferredOutDir,
+            ...(config.outFile ? { outFile: config.outFile } : {}),
+            contentPath,
+            styles: ensureArray(profile.styles).concat(ensureArray(config.styles)),
+            scripts: ensureArray(profile.scripts).concat(ensureArray(config.scripts)),
+            modules: ensureArray(profile.modules).concat(ensureArray(config.modules)),
+            imports: ensureArray(config.imports), // no merge
+            templatePath: config.templatePath ?? profile.templatePath,
+            navPath: currentPath,
+            depth
         };
 
         result.push(flattened);
 
         if (config.children) {
-            const children = flattenPages(config.children, currentPath, depth + 1);
-            result.push(...children);
+            result.push(...flattenPages(config.children, currentPath, depth + 1, profile));
         }
     }
 

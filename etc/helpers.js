@@ -78,7 +78,7 @@ export async function readTextFile(filePath) {
     return readFile(filePath, "utf8");
 }
 
-// helper: load and join multiple text files
+// helper: load and join multiple text files (multistring input)
 export async function readAndJoinTextFiles(paths) {
     if (!paths) return "";
     const arr = Array.isArray(paths) ? paths : [paths];
@@ -86,17 +86,3 @@ export async function readAndJoinTextFiles(paths) {
     return contents.join("\n");
 }
 
-export function wrapTags(items, template) {
-    if (!items) return "";
-    const arr = Array.isArray(items) ? items : [items];
-    return arr.map(template).join("\n");
-}
-
-export async function resolveFragments(fragments) {
-    const out = {};
-    for (const [key, filePath] of Object.entries(fragments || {})) {
-        if (!filePath) continue;
-        out[key] = await readTextFile(filePath);
-    }
-    return out;
-}

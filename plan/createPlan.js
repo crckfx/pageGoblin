@@ -4,7 +4,6 @@ import { flattenPages } from "../adapter/flatten-pages.js";
 import { loadJSON } from "../etc/helpers.js";
 import { loadGoblinCache } from "../etc/cache-utils.js";
 import { scanRenderEntry } from "./scanRenderEntry.js";
-import { inflateArticlesToPages } from "../adapter/articles-adapter.js";
 import { scanEntryImports } from "./scanEntryImports.js";
 
 export async function createPlan(projectRoot, distRoot, config, verbose = false) {
@@ -12,39 +11,35 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
     const dist = path.resolve(distRoot);
     const goblinCache = loadGoblinCache(root);
 
-    
-    // pagesJsonPath is guaranteed absolute by the config loader
-    const pagesMain = flattenPages(await loadJSON(config.pagesJsonPath));
+    const allPages = [];
 
-    let articlePages = [];
-    if (config.articlesJsonPath) {
-        const articlesObj = await loadJSON(config.articlesJsonPath);
-        articlePages = inflateArticlesToPages(articlesObj, config);
+    for (const src of config.sources) {
+        const profile = config.profiles[src.profile];
+        if (!profile)
+            throw new Error(`Unknown profile "${src.profile}" in config.sources`);
+
+        const data = await loadJSON(src.path);
+        const entries = flattenPages(data, [], 0, profile);
+        allPages.push(...entries);
     }
-
-    const pages = [...pagesMain, ...articlePages];
 
     const expectedPaths = new Set();
     const copyChanges = [];
     const htmlChanges = [];
     let totalScanned = 0;
 
-    for (const page of pages) {
-        // ONE-TIME normalization per page: WEB path → absolute FS path in dist
-        // Example: "/a/b/index.html" → "<dist>/a/b/index.html"
+    for (const page of allPages) {
         page.outDir = path.resolve(dist, "." + page.outDir);
         const outFile = page.outFile || "index.html";
 
         if (page.contentPath) {
-            const htmlFile = path.join(page.outDir, outFile); // absolute file path
+            const htmlFile = path.join(page.outDir, outFile);
             expectedPaths.add(htmlFile);
         }
 
-        // Plan render work for this page
         const html = scanRenderEntry(root, page, config, goblinCache);
         htmlChanges.push(...html);
 
-        // Plan transfer (imports) for this page
         const { scanned, changes, expectedPaths: importExpected } =
             scanEntryImports(root, page, { verbose, pageId: page.pageId });
 
@@ -56,12 +51,12 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
     return {
         root,
         dist,
-        pages,
+        pages: allPages,
         config,
         goblinCache,
         expectedPaths,
         copyChanges,
         htmlChanges,
-        totalScanned,
+        totalScanned
     };
 }
