@@ -26,24 +26,29 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
     const expectedPaths = new Set();
     const copyChanges = [];
     const htmlChanges = [];
-    let totalScanned = 0;
+    let renderablePages = 0;
+    let totalImports = 0;
 
     for (const page of allPages) {
         page.outDir = path.resolve(dist, "." + page.outDir);
-        
-        if (page.contentPath) {
+
+        if (Array.isArray(page.contentPath) && page.contentPath.length > 0) {
             const outFile = page.outFile || "index.html";
             const htmlFile = path.join(page.outDir, outFile);
             expectedPaths.add(htmlFile);
+
+            const html = scanRenderEntry(root, page, config, goblinCache);
+            htmlChanges.push(...html);
+
+            renderablePages++;
         }
 
-        const html = scanRenderEntry(root, page, config, goblinCache);
-        htmlChanges.push(...html);
+
 
         const { scanned, changes, expectedPaths: importExpected } =
             scanEntryImports(root, page, { verbose, pageId: page.pageId });
 
-        totalScanned += scanned;
+        totalImports += scanned;
         copyChanges.push(...changes);
         importExpected.forEach((p) => expectedPaths.add(p));
     }
@@ -57,6 +62,7 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
         expectedPaths,
         copyChanges,
         htmlChanges,
-        totalScanned
+        renderablePages,
+        totalImports
     };
 }

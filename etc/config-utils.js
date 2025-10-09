@@ -13,13 +13,13 @@ export async function loadAndValidateConfig(projectRoot, configPath) {
 
     const resolveIfSet = (p) => (p ? path.resolve(absProjectRoot, p) : null);
 
-    // Resolve fragments
+    // Resolve global fragments
     if (config.fragments) {
         for (const [k, v] of Object.entries(config.fragments))
             config.fragments[k] = resolveIfSet(v);
     }
 
-    // Resolve profile paths
+    // Resolve profiles (including optional fragment maps)
     if (config.profiles) {
         for (const [name, profile] of Object.entries(config.profiles)) {
             if (profile.templatePath)
@@ -27,8 +27,15 @@ export async function loadAndValidateConfig(projectRoot, configPath) {
 
             if (profile.outDirRule)
                 profile.outDirRule = profile.outDirRule.replaceAll("\\", "/");
+
+            // NEW: resolve profile fragments (allow null suppression)
+            if (profile.fragments) {
+                for (const [k, v] of Object.entries(profile.fragments))
+                    profile.fragments[k] = v === null ? null : resolveIfSet(v);
+            }
         }
     }
+
 
     // Resolve sources
     if (Array.isArray(config.sources)) {

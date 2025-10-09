@@ -48,7 +48,8 @@ export function flattenPages(pages, ancestry = [], depth = 0, profile = {}) {
             imports: ensureArray(config.imports), // no merge
             templatePath: config.templatePath ?? profile.templatePath,
             navPath: currentPath,
-            depth
+            depth,
+            profile
         };
 
         result.push(flattened);

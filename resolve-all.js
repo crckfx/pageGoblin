@@ -40,8 +40,8 @@ export async function resolveAll(projectRoot, distRoot, configPath, options = {}
     }
 
     // Summary
-    console.log(`📄 Scanned ${plan.totalScanned} files for copying.`);
-    console.log(`📄 Scanned ${plan.pages.length} pages for rendering.`);
+    console.log(`📄 Scanned ${plan.totalImports} asset files for copying.`);
+    console.log(`📄 Scanned ${plan.pages.length} locations (${plan.renderablePages} renderable pages).`);
     if (write) {
         if (totalWritten > 0) console.log(`✍️  Total files copied: ${totalWritten}`);
         if (totalRendered > 0) console.log(`✍️  Total pages rendered: ${totalRendered}`);

@@ -3,6 +3,27 @@ import fs from "fs";
 import path from "path";
 import { hashText } from "../etc/cache-utils.js";
 
+function mergeFragmentsForPage(config, page) {
+    const merged = { ...config.fragments };
+
+    // profile layer
+    const pf = page.profile?.fragments || {};
+    for (const [k, v] of Object.entries(pf)) {
+        if (v === null) delete merged[k];
+        else merged[k] = v;
+    }
+
+    // page layer
+    const pg = page.fragments || {};
+    for (const [k, v] of Object.entries(pg)) {
+        if (v === null) delete merged[k];
+        else merged[k] = v;
+    }
+
+    return merged;
+}
+
+
 export function scanRenderEntry(root, page, config, goblinCache) {
     // No HTML to render for this entry
     if (!page.contentPath || page.contentPath.length === 0) return [];
@@ -20,7 +41,8 @@ export function scanRenderEntry(root, page, config, goblinCache) {
     // Hash inputs (missing files hash to null; we still diff the shape)
     const inputHashes = {};
     // Collect fragments (paths) for later render
-    page.fragments = { ...(config.fragments || {}), ...(page.fragments || {}) };
+    page.fragments = mergeFragmentsForPage(config, page);
+
 
     // Hash template + fragments together
     const fileInputs = {
