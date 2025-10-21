@@ -1,5 +1,4 @@
-#!/usr/bin/env node
-
+// resolve.all.js
 import chalk from "chalk";
 import path from "path";
 import { isCLI } from "./etc/helpers.js";

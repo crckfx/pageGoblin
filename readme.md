@@ -16,7 +16,7 @@ to build the site from its config, call ***`resolve-all.js`***, feeding it the f
 
 for example:
 ```bash
-node resolve-all.js <projectRoot> <distRoot> <pagesJson> <configJson> [--write] [--clean] [--verbose]
+node resolve-all.js <projectRoot> <distRoot> <configJson> [--write] [--clean] [--verbose]
 ```
 > note: you must actually specify `--write` in order to build. without the flag, it does a dry run, only printing the plan; not executing it.
 

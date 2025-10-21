@@ -99,6 +99,15 @@ async function renderEntry(root, page, config, verbose) {
         }
     }
 
+    const fragments = {};
+    if (page.fragments && typeof page.fragments === "object") {
+        for (const [k, v] of Object.entries(page.fragments)) {
+            if (v === null) continue; // null suppresses
+            fragments[k] = path.isAbsolute(v) ? v : path.resolve(root, v);
+        }
+    }
+
+
     const templatePath = path.resolve(root, page.templatePath ?? config.templatePath);
 
     await renderPage({
