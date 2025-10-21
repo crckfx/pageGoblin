@@ -122,7 +122,7 @@ async function renderEntry(root, page, config, verbose) {
         navPath,
         image,
         pageId,
-        fragments: page.fragments || {}         // pass through exactly as stored in page/config
+        fragments,
     });
 
     return true;
