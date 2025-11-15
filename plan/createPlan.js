@@ -51,6 +51,15 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
         totalImports += scanned;
         copyChanges.push(...changes);
         importExpected.forEach((p) => expectedPaths.add(p));
+
+        // 'preserve' flag from config
+        const preserve = config.flags?.preserve;
+        if (Array.isArray(preserve)) {
+            for (const rel of preserve) {
+                expectedPaths.add(path.resolve(distRoot, rel));
+            }
+        }
+
     }
 
     return {
