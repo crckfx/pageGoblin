@@ -53,10 +53,22 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
         importExpected.forEach((p) => expectedPaths.add(p));
 
         // 'preserve' flag from config
+        // these are otherwise unhandled files that aren't part of the plan but shouldn't be cleaned
         const preserve = config.flags?.preserve;
         if (Array.isArray(preserve)) {
             for (const rel of preserve) {
                 expectedPaths.add(path.resolve(distRoot, rel));
+            }
+        }
+
+        // 'generate' flag from config
+        // (it produces files that shouldn't be cleaned; so they're 'preserved')
+        const generate = config.flags?.generate;
+        if (generate && typeof generate === "object") {
+            for (const outFile of Object.values(generate)) {
+                // outFile is something like "map.json"
+                const abs = path.resolve(dist, outFile);
+                expectedPaths.add(abs);
             }
         }
 

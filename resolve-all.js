@@ -7,6 +7,25 @@ import { createPlan } from "./plan/createPlan.js";
 import { cleanFromPlan } from "./execute/cleanFromPlan.js";
 import { writeFromPlan } from "./execute/writeFromPlan.js";
 import { loadAndValidateConfig } from "./etc/config-utils.js";
+import { generateMap_JSON } from "./plugins/mapGen.js";
+
+async function runGenerators({ plan, config, distRoot }) {
+    if (!config.flags?.generate) return;
+
+    for (const [key, outFile] of Object.entries(config.flags.generate)) {
+        const outputPath = path.resolve(distRoot, outFile);
+
+        switch (key) {
+            case "map_JSON":
+                await generateMap_JSON({ plan, config, distRoot, outputPath });
+                break;
+
+            default:
+                throw new Error(`Unknown generator key: ${key}`);
+        }
+    }
+}
+
 
 /* --------------------------- Orchestrator API -------------------------- */
 
@@ -30,6 +49,7 @@ export async function resolveAll(projectRoot, distRoot, configPath, options = {}
         totalRendered = r;
         totalWritten = w;
         saveGoblinCache(plan.root, plan.goblinCache, absDistRoot);
+        await runGenerators({ plan, config, distRoot: absDistRoot });
     }
 
     if (clean) {
