@@ -11,9 +11,9 @@ function parentUrl(url) {
 }
 
 
-export async function generateMap_JSON({ plan, distRoot, outputPath }) {
-    console.log("[map_JSON] === generator start ===");
-    console.log("[map_JSON] distRoot:", distRoot);
+export async function generateMap_JSON({ plan, distRoot, outputPath, verbose = false }) {
+    if (verbose) console.log("[map_JSON] === generator start ===");
+    if (verbose) console.log("[map_JSON] distRoot:", distRoot);
 
     const urls = Object.create(null);
 
@@ -40,10 +40,10 @@ export async function generateMap_JSON({ plan, distRoot, outputPath }) {
             pageId: page.pageId || null
         };
 
-        console.log("[map_JSON] page:", url, "title:", urls[url].title);
+        if (verbose) console.log("[map_JSON] page:", url, "title:", urls[url].title);
     }
 
-    console.log("[map_JSON] metadata nodes:", Object.keys(urls).length);
+    if (verbose) console.log("[map_JSON] metadata nodes:", Object.keys(urls).length);
 
     // SECOND pass: add missing parents that have no index and/or aren't considered "a page" yet
     for (const url of Object.keys(urls)) {
@@ -51,7 +51,7 @@ export async function generateMap_JSON({ plan, distRoot, outputPath }) {
 
         while (parent) {
             if (!urls[parent]) {
-                console.log("[map_JSON] synth parent:", parent);
+                // console.log("[map_JSON] synth parent:", parent);
 
                 urls[parent] = {
                     hasIndex: false,
@@ -72,13 +72,13 @@ export async function generateMap_JSON({ plan, distRoot, outputPath }) {
         sorted[key] = urls[key];
     }
 
-    console.log("[map_JSON] final URL count:", Object.keys(sorted).length);
-    console.log("[map_JSON] writing:", outputPath);
+    if (verbose) console.log("[map_JSON] final URL count:", Object.keys(sorted).length);
+    if (verbose) console.log("[map_JSON] writing:", outputPath);
 
     await fs.writeFile(
         outputPath,
         JSON.stringify({ urls: sorted }, null, 2) + "\n"
     );
 
-    console.log("[map_JSON] === generator end ===");
+    if (verbose) console.log("[map_JSON] === generator end ===");
 }

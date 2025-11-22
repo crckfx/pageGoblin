@@ -9,7 +9,7 @@ import { writeFromPlan } from "./execute/writeFromPlan.js";
 import { loadAndValidateConfig } from "./etc/config-utils.js";
 import { generateMap_JSON } from "./plugins/mapGen.js";
 
-async function runGenerators({ plan, config, distRoot }) {
+async function runGenerators({ plan, config, distRoot, verbose }) {
     if (!config.flags?.generate) return;
 
     for (const [key, outFile] of Object.entries(config.flags.generate)) {
@@ -17,7 +17,7 @@ async function runGenerators({ plan, config, distRoot }) {
 
         switch (key) {
             case "map_JSON":
-                await generateMap_JSON({ plan, config, distRoot, outputPath });
+                await generateMap_JSON({ plan, distRoot, outputPath, verbose });
                 break;
 
             default:
@@ -49,7 +49,7 @@ export async function resolveAll(projectRoot, distRoot, configPath, options = {}
         totalRendered = r;
         totalWritten = w;
         saveGoblinCache(plan.root, plan.goblinCache, absDistRoot);
-        await runGenerators({ plan, config, distRoot: absDistRoot });
+        await runGenerators({ plan, config, distRoot: absDistRoot, verbose });
     }
 
     if (clean) {
