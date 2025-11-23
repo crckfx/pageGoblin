@@ -18,7 +18,7 @@ export function cleanFromPlan(plan) {
 
             // If an HTML render target was deleted, prune its cache entry
             const absResolved = path.resolve(abs);
-            if (goblinCache[absResolved]) {
+            if (goblinCache.pages[absResolved]) {
                 deletedHtmlKeys.push(absResolved);
             }
         }

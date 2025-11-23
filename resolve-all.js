@@ -48,7 +48,8 @@ export async function resolveAll(projectRoot, distRoot, configPath, options = {}
         const { totalRendered: r, totalWritten: w } = await writeFromPlan(plan, { verbose });
         totalRendered = r;
         totalWritten = w;
-        saveGoblinCache(plan.root, plan.goblinCache, absDistRoot);
+        plan.goblinCache.dist = absDistRoot;
+        saveGoblinCache(plan.root, plan.goblinCache);
         await runGenerators({ plan, config, distRoot: absDistRoot, verbose });
     }
 

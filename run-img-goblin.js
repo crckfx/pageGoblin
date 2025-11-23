@@ -78,7 +78,7 @@ function sweepCacheForImgGoblin() {
         process.exit(1);
     }
 
-    const pagesMap = loadGoblinCache(projectRoot); // flat map (json.pages)
+    const pagesMap = loadGoblinCache(projectRoot)?.pages; // flat map (json.pages)
     let considered = 0,
         processed = 0,
         skippedDone = 0,

@@ -4,13 +4,43 @@ import path from "path";
 // import { applyChanges } from "../copy/write.js";
 import { logChange } from "../etc/helpers.js";
 // import { renderEntry } from "../render/renderEntry.js";
+import { ensureDir } from "../etc/helpers.js";
+import { renderGraft } from "../plugins/renderGraft.js";
+
 
 export async function writeFromPlan(plan, { verbose = false } = {}) {
     const {
         root, pages, config,
         goblinCache, expectedPaths,
-        htmlChanges, copyChanges
+        htmlChanges, copyChanges,
+        grafts, graftStatus
     } = plan;
+
+
+    // ----------------- GRAFT RENDERING -----------------
+    const graftOutputDir = path.resolve(root, ".pageGoblin/graft");
+    // ensureDir(graftOutputDir);
+
+    for (const g of grafts) {
+        const status = graftStatus[g.name];
+        const outPath = path.join(graftOutputDir, g.name);
+        if (status.needsRender) {
+            // console.log(`${g.name} needs render at ${outPath} via ${g.template}`);
+
+            await renderGraft(g, outPath, plan);
+
+            // --- NEW: update cache for next run ---
+            const cacheKey = outPath;  // consistent with scanGraft
+            const prev = goblinCache.grafts[cacheKey] || {};
+            goblinCache.grafts[cacheKey] = {
+                ...prev,
+                inputHashes: status.inputHashes,
+                combinedHash: status.combinedHash
+            };
+            // --------------------------------------            
+        }
+    }
+    // ----------------------------------------------------
 
     let totalRendered = 0;
     let totalWritten = 0;
@@ -26,9 +56,9 @@ export async function writeFromPlan(plan, { verbose = false } = {}) {
 
         const didRender = await renderEntry(root, page, config, verbose);
         if (didRender) {
-            const prev = goblinCache[cacheKey] || {};
+            const prev = goblinCache.pages[cacheKey] || {};
             // keep any other fields, update hashes, and CLEAR job marks
-            goblinCache[cacheKey] = { ...prev, inputHashes, jobs: {} };
+            goblinCache.pages[cacheKey] = { ...prev, inputHashes, jobs: {} };
             totalRendered++;
             if (verbose) console.log(`Rendered ${dstPath}`);
         }
@@ -48,7 +78,6 @@ export async function writeFromPlan(plan, { verbose = false } = {}) {
 
 import fs from "fs";
 // import path from "path";
-import { ensureDir } from "../etc/helpers.js";
 
 function applyChanges(changes) {
     const written = [];

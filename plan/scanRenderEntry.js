@@ -24,10 +24,11 @@ function mergeFragmentsForPage(config, page) {
 }
 
 
-export function scanRenderEntry(root, page, config, goblinCache) {
+export function scanRenderEntry(root, page, config, goblinCache, graftStatus) {
     // No HTML to render for this entry
     if (!page.contentPath || page.contentPath.length === 0) return [];
 
+    let graftTriggered = false;
     // Resolve destination file (absolute)
     const outFile = path.basename(page.outFile || "index.html"); // guard against path segments
     const outDirAbs = path.isAbsolute(page.outDir)
@@ -52,6 +53,29 @@ export function scanRenderEntry(root, page, config, goblinCache) {
 
     for (const [key, filePath] of Object.entries(fileInputs)) {
         if (!filePath) continue;
+
+        // ----------------- graft specifier? -----------------
+        if (typeof filePath === "string" && filePath.startsWith("graft:")) {
+            const graftName = filePath.slice("graft:".length);
+
+
+            const gs = graftStatus?.[graftName];
+
+            // hashing
+            inputHashes[key] = gs ? gs.combinedHash : null;
+
+            // IMPORTANT: replace the fragment in place
+            if (gs?.outputPath) {
+                page.fragments[key] = gs.outputPath;
+            }
+            if (gs?.needsRender) {
+                graftTriggered = true;
+            }
+
+            continue;
+        }
+
+        // ----------------- normal file -----------------
         try {
             const abs = path.resolve(root, filePath);
             const content = fs.readFileSync(abs, "utf8");
@@ -60,6 +84,7 @@ export function scanRenderEntry(root, page, config, goblinCache) {
             inputHashes[key] = null;
         }
     }
+
     // page.contentPath is guaranteed to be an array
     let combinedContent = "";
     for (let i = 0; i < page.contentPath.length; i++) {
@@ -80,8 +105,8 @@ export function scanRenderEntry(root, page, config, goblinCache) {
 
 
     // Compare to cache (dry run: do not mutate cache here)
-    const prev = goblinCache[cacheKey];
-    const changed = !prev || JSON.stringify(prev.inputHashes) !== JSON.stringify(inputHashes);
+    const prev = goblinCache.pages[cacheKey];
+    const changed = !prev || graftTriggered || JSON.stringify(prev.inputHashes) !== JSON.stringify(inputHashes);
 
     return changed
         ? [{ status: "RENDER", dstPath, inputHashes, cacheKey }]

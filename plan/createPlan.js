@@ -5,6 +5,10 @@ import { loadJSON } from "../etc/helpers.js";
 import { loadGoblinCache } from "../etc/cache-utils.js";
 import { scanRenderEntry } from "./scanRenderEntry.js";
 import { scanEntryImports } from "./scanEntryImports.js";
+import { routeGrafts } from "../plugins/graft-router.js";
+import { pathToFileURL } from "url";
+import { scanGraft } from "../plugins/scanGraft.js";
+
 
 export async function createPlan(projectRoot, distRoot, config, verbose = false) {
     const root = path.resolve(projectRoot);
@@ -23,11 +27,59 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
         allPages.push(...entries);
     }
 
+
     const expectedPaths = new Set();
     const copyChanges = [];
     const htmlChanges = [];
     let renderablePages = 0;
     let totalImports = 0;
+
+    // ------------------ GRAFT STUFF -----------------------------
+    // console.log(config.grafts);
+
+    let providers = {};
+    if (config.providersFile) {
+        const abs = path.resolve(projectRoot, config.providersFile);
+        const fileUrl = pathToFileURL(abs).href;
+        try {
+            const m = await import(fileUrl);
+            // console.log("raw imported module:", m);
+            providers = m;
+        } catch (err) {
+            // console.log("import error:", err);
+            providers = {};
+        }
+    }
+    // console.log("providers:", providers);
+
+    const routedGrafts = routeGrafts(projectRoot, config.grafts, providers);
+    // console.log(`found grafts: ${routedGrafts.length}. `);
+
+    // check the graft declarations are all valid
+    for (const g of routedGrafts) {
+        const looksGoodMsg = g.looksGood ? "looks good" : "looks bad";
+        console.log("GRAFT:", g.name, looksGoodMsg);
+    }
+
+    // Build output folder for grafts:
+    const graftOutputDir = path.resolve(root, ".pageGoblin/graft");
+
+    const graftStatus = {};  // single object: name → {combinedHash, needsRender, inputHashes}
+
+    // decide if each graft needs rendering (along with some crude hashing)
+    for (const g of routedGrafts) {
+        const outFile = path.join(graftOutputDir, g.name);
+        graftStatus[g.name] = scanGraft(g, goblinCache, outFile);
+    }
+
+    // prove we know if a graft is dirty or not
+    for (const s in graftStatus) {
+        console.log(`${graftStatus[s].needsRender}: ${graftStatus[s].outputPath} `);
+    }
+
+    // now we have a pretty good but crude picture about the grafts; enough that a loop over pages for might be able to use it
+
+    // ------------------ /GRAFT STUFF -----------------------------
 
     for (const page of allPages) {
         page.outDir = path.resolve(dist, "." + page.outDir);
@@ -36,13 +88,13 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
             const outFile = page.outFile || "index.html";
             const htmlFile = path.join(page.outDir, outFile);
             expectedPaths.add(htmlFile);
-
-            const html = scanRenderEntry(root, page, config, goblinCache);
+            // perhaps scanrenderentry is where the graft specifics get meaningfully next used?
+            const html = scanRenderEntry(root, page, config, goblinCache, graftStatus);
             htmlChanges.push(...html);
 
             renderablePages++;
         }
-
+        // console.log("finished scanRenderEntry");
 
 
         const { scanned, changes, expectedPaths: importExpected } =
@@ -84,6 +136,8 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
         copyChanges,
         htmlChanges,
         renderablePages,
-        totalImports
+        totalImports,
+        grafts: routedGrafts,
+        graftStatus
     };
 }
