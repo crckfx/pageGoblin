@@ -61,21 +61,12 @@ export function scanGraft(g, goblinCache, outputAbsPath) {
                 break;
 
             case "function":
-                // this was a fix for "change function body"->needsRender
-                // but it doesn't truly get the "fnout", so we aren't storing a real output from a function here yet
-                // 1. hash the serialized function body
-                const fnBody = inp.fn ? inp.fn.toString() : "";
-                inputHashes[key + "_fnBody"] = hashString(fnBody);
-
-                // 2. hash the function output (depends on plan - DUMB AND NOT AVAILABLE HERE) 
-                let fnOut;
-                try {
-                    fnOut = inp.fn ? inp.fn(plan) : "";
-                } catch (err) {
-                    fnOut = "__ERROR__:" + err.message;
-                }
-                inputHashes[key + "_fnOutput"] = hashString(String(fnOut));
+                // Hash the function body ONLY.
+                // (fn output hashing will happen later during write phase, if desired)
+                const body = inp.fn ? inp.fn.toString() : "";
+                inputHashes[key + "_fnBody"] = hashString(body);
                 break;
+
 
             default:
                 inputHashes[key] = hashString(JSON.stringify(inp));

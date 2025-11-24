@@ -34,6 +34,8 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
     let renderablePages = 0;
     let totalImports = 0;
 
+    const htmlGregs = [];
+
     // ------------------ GRAFT STUFF -----------------------------
     // console.log(config.grafts);
 
@@ -55,16 +57,10 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
     const routedGrafts = routeGrafts(projectRoot, config.grafts, providers);
     // console.log(`found grafts: ${routedGrafts.length}. `);
 
-    // check the graft declarations are all valid
-    for (const g of routedGrafts) {
-        const looksGoodMsg = g.looksGood ? "looks good" : "looks bad";
-        console.log("GRAFT:", g.name, looksGoodMsg);
-    }
-
     // Build output folder for grafts:
     const graftOutputDir = path.resolve(root, ".pageGoblin/graft");
 
-    const graftStatus = {};  // single object: name → {combinedHash, needsRender, inputHashes}
+    const graftStatus = {};
 
     // decide if each graft needs rendering (along with some crude hashing)
     for (const g of routedGrafts) {
@@ -72,12 +68,8 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
         graftStatus[g.name] = scanGraft(g, goblinCache, outFile);
     }
 
-    // prove we know if a graft is dirty or not
-    for (const s in graftStatus) {
-        console.log(`${graftStatus[s].needsRender}: ${graftStatus[s].outputPath} `);
-    }
-
-    // now we have a pretty good but crude picture about the grafts; enough that a loop over pages for might be able to use it
+    // now we have a pretty good but crude picture about the grafts.
+    // importantly, we don't know here if a graft's function output changed.
 
     // ------------------ /GRAFT STUFF -----------------------------
 
@@ -88,13 +80,14 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
             const outFile = page.outFile || "index.html";
             const htmlFile = path.join(page.outDir, outFile);
             expectedPaths.add(htmlFile);
-            // perhaps scanrenderentry is where the graft specifics get meaningfully next used?
+            // modifying to return now return data on empty too
             const html = scanRenderEntry(root, page, config, goblinCache, graftStatus);
-            htmlChanges.push(...html);
+            htmlChanges.push(html);
+
 
             renderablePages++;
         }
-        // console.log("finished scanRenderEntry");
+
 
 
         const { scanned, changes, expectedPaths: importExpected } =

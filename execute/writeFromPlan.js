@@ -5,54 +5,63 @@ import path from "path";
 import { logChange } from "../etc/helpers.js";
 // import { renderEntry } from "../render/renderEntry.js";
 import { ensureDir } from "../etc/helpers.js";
-import { renderGraft } from "../plugins/renderGraft.js";
 
+import chalk from "chalk";
+import { renderPage } from "../render/renderPage.js";
 
 export async function writeFromPlan(plan, { verbose = false } = {}) {
     const {
         root, pages, config,
         goblinCache, expectedPaths,
         htmlChanges, copyChanges,
-        grafts, graftStatus
     } = plan;
-
-
-    // ----------------- GRAFT RENDERING -----------------
-    const graftOutputDir = path.resolve(root, ".pageGoblin/graft");
-    // ensureDir(graftOutputDir);
-
-    for (const g of grafts) {
-        const status = graftStatus[g.name];
-        const outPath = path.join(graftOutputDir, g.name);
-        if (status.needsRender) {
-            // console.log(`${g.name} needs render at ${outPath} via ${g.template}`);
-
-            await renderGraft(g, outPath, plan);
-
-            // --- NEW: update cache for next run ---
-            const cacheKey = outPath;  // consistent with scanGraft
-            const prev = goblinCache.grafts[cacheKey] || {};
-            goblinCache.grafts[cacheKey] = {
-                ...prev,
-                inputHashes: status.inputHashes,
-                combinedHash: status.combinedHash
-            };
-            // --------------------------------------            
-        }
-    }
-    // ----------------------------------------------------
 
     let totalRendered = 0;
     let totalWritten = 0;
 
+    // graft renders
+    for (const g of plan.grafts) {
+        const gs = plan.graftStatus[g.name];
+        if (!gs || !gs.finalNeedsRender) continue;
+
+        await writeGraft({
+            template: g.template,      // from the original graft definition
+            outputPath: gs.outputPath, // from scan/resolve
+            locals: gs.locals || {},   // from computeGraftData
+        });
+
+        // update cache after successful write
+        plan.goblinCache.grafts[gs.outputPath] = {
+            inputHashes: gs.inputHashes,
+            combinedHash: gs.combinedHash,
+            fnOutputHashes: gs.fnOutputHashes,
+        };
+
+        // if (verbose) 
+        console.log(`Graft rendered: ${gs.outputPath}`);
+    }
+
+
+
     // HTML renders
-    for (const { dstPath, inputHashes, cacheKey } of htmlChanges) {
-        // match job to page by location-first target: outDir / (outFile || index.html)
-        const page = pages.find((p) => {
+    for (const { dstPath, inputHashes, cacheKey, changed } of htmlChanges) {
+        // 1. Lookup the page object
+        const page = pages.find(p => {
             const target = path.join(p.outDir, p.outFile || "index.html");
             return target === dstPath;
         });
         if (!page) continue;
+
+        // 2. Determine graft-triggered rebuild
+        const graftTriggered =
+            page.graftsUsed &&
+            page.graftsUsed.some(name => {
+                const gs = plan.graftStatus[name];
+                return gs && gs.finalNeedsRender;
+            });
+
+        // 3. If neither static nor graft-triggered, skip
+        if (!changed && !graftTriggered) continue;
 
         const didRender = await renderEntry(root, page, config, verbose);
         if (didRender) {
@@ -77,6 +86,8 @@ export async function writeFromPlan(plan, { verbose = false } = {}) {
 }
 
 import fs from "fs";
+import { writeGraft } from "../plugins/writeGraft.js";
+import { json } from "stream/consumers";
 // import path from "path";
 
 function applyChanges(changes) {
@@ -99,8 +110,6 @@ function applyChanges(changes) {
     return written;
 }
 
-import chalk from "chalk";
-import { renderPage } from "../render/renderPage.js";
 
 async function renderEntry(root, page, config, verbose) {
     const {

@@ -7,4 +7,11 @@
 
 - [x] allow grafts
 - [ ] write documentation for grafts
-- [ ] cache and compare function body for grafts (not implemented properly)
+- [x] cache and compare function body for grafts 
+- [x] pass the whole cache around instead of passing around *goblinCache.pages* as cache
+- [x] separate page and graft rebuild logic
+- [x] rebuild (force) if a page's graft function output changed
+- [x] fix stale page deletion from cache (bug born from *pass around whole cache* change)
+- [ ] delete stale graft entries from cache
+- [ ] fix some bad names 
+    - [ ] rename the now-misnomer "htmlChanges" (it now carries all the page build things)

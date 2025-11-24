@@ -27,7 +27,7 @@ export function cleanFromPlan(plan) {
     // Remove any cache entries for deleted html outputs
     let cacheModified = false;
     if (deletedHtmlKeys.length > 0) {
-        for (const key of deletedHtmlKeys) delete goblinCache[key];
+        for (const key of deletedHtmlKeys) delete goblinCache.pages[key];
         cacheModified = true;
     }
 

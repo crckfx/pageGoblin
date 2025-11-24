@@ -8,6 +8,8 @@ import { cleanFromPlan } from "./execute/cleanFromPlan.js";
 import { writeFromPlan } from "./execute/writeFromPlan.js";
 import { loadAndValidateConfig } from "./etc/config-utils.js";
 import { generateMap_JSON } from "./plugins/mapGen.js";
+import { computeGraftData } from "./plugins/computeGraftData.js";
+import { writeGraft } from "./plugins/writeGraft.js";
 
 async function runGenerators({ plan, config, distRoot, verbose }) {
     if (!config.flags?.generate) return;
@@ -43,6 +45,32 @@ export async function resolveAll(projectRoot, distRoot, configPath, options = {}
 
     // Track counts
     let totalWritten = 0, totalRendered = 0, totalDeleted = 0;
+
+    // ----------------- GRAFT RENDERING -----------------
+    for (const g of plan.grafts) {
+        const status = plan.graftStatus[g.name];
+
+        const cacheKey = status.outputPath;
+
+        // ----- compute dynamic locals + fnOut -----
+        const { locals, fnOutputHashes } = await computeGraftData(g, plan);
+
+        // ----- compare fnOutHashes with cached -----
+        const prev = plan.goblinCache.grafts[cacheKey] || {};
+        const prevFn = prev.fnOutputHashes || {};
+        const fnOutChanged = JSON.stringify(prevFn) !== JSON.stringify(fnOutputHashes);
+
+
+        const finalNeedsRender = status.needsRender || fnOutChanged;
+
+
+        // ----- store results directly on the existing status -----
+        status.locals = locals;
+        status.fnOutputHashes = fnOutputHashes;
+        status.fnOutChanged = fnOutChanged;
+        status.finalNeedsRender = finalNeedsRender;
+
+    }
 
     if (write) {
         const { totalRendered: r, totalWritten: w } = await writeFromPlan(plan, { verbose });

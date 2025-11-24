@@ -43,7 +43,7 @@ export function scanRenderEntry(root, page, config, goblinCache, graftStatus) {
     const inputHashes = {};
     // Collect fragments (paths) for later render
     page.fragments = mergeFragmentsForPage(config, page);
-
+    page.graftsUsed = [];
 
     // Hash template + fragments together
     const fileInputs = {
@@ -58,11 +58,12 @@ export function scanRenderEntry(root, page, config, goblinCache, graftStatus) {
         if (typeof filePath === "string" && filePath.startsWith("graft:")) {
             const graftName = filePath.slice("graft:".length);
 
+            page.graftsUsed.push(graftName);
 
             const gs = graftStatus?.[graftName];
 
             // hashing
-            inputHashes[key] = gs ? gs.combinedHash : null;
+            inputHashes[key] = filePath; // should be something like "graft:something.html"
 
             // IMPORTANT: replace the fragment in place
             if (gs?.outputPath) {
@@ -107,6 +108,14 @@ export function scanRenderEntry(root, page, config, goblinCache, graftStatus) {
     // Compare to cache (dry run: do not mutate cache here)
     const prev = goblinCache.pages[cacheKey];
     const changed = !prev || graftTriggered || JSON.stringify(prev.inputHashes) !== JSON.stringify(inputHashes);
+
+    return {
+        changed,
+        // status: "RENDER",
+        dstPath, 
+        inputHashes, 
+        cacheKey,
+    }
 
     return changed
         ? [{ status: "RENDER", dstPath, inputHashes, cacheKey }]
