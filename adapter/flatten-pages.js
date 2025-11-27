@@ -33,13 +33,20 @@ export function flattenPages(pages, ancestry = [], depth = 0, profile = {}) {
                 .replace(/\{navPath\}/g, navPath)
             : null;
 
-
+        const outDir = config.outDir ?? outDirFromRule ?? inferredOutDir;
+        
+        let url = outDir;
+        // Ensure leading slash
+        if (!url.startsWith("/")) url = "/" + url;
+        // Root must stay exactly "/"
+        if (url !== "/" && !url.endsWith("/")) url = url + "/";
 
 
         const flattened = {
             ...config,
             pageId,
-            outDir: config.outDir ?? outDirFromRule ?? inferredOutDir,
+            outDir: outDir,
+            url: url, // parallel url one that WON'T get overwritten perhaps
             ...(config.outFile ? { outFile: config.outFile } : {}),
             contentPath,
             styles: ensureArray(profile.styles).concat(ensureArray(config.styles)),

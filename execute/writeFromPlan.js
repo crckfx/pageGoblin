@@ -1,13 +1,12 @@
 // execute/writeFromPlan.js
+import fs from "fs";
 import path from "path";
-
-// import { applyChanges } from "../copy/write.js";
-import { logChange } from "../etc/helpers.js";
-// import { renderEntry } from "../render/renderEntry.js";
-import { ensureDir } from "../etc/helpers.js";
-
 import chalk from "chalk";
+import { logChange } from "../etc/helpers.js";
+import { ensureDir } from "../etc/helpers.js";
 import { renderPage } from "../render/renderPage.js";
+import { writeGraft } from "../plugins/writeGraft.js";
+
 
 export async function writeFromPlan(plan, { verbose = false } = {}) {
     const {
@@ -85,10 +84,7 @@ export async function writeFromPlan(plan, { verbose = false } = {}) {
     return { totalRendered, totalWritten };
 }
 
-import fs from "fs";
-import { writeGraft } from "../plugins/writeGraft.js";
-import { json } from "stream/consumers";
-// import path from "path";
+
 
 function applyChanges(changes) {
     const written = [];

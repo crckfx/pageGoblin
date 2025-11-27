@@ -56,5 +56,6 @@ export function scanEntryImports(absProjectRoot, pageConfig, options = {}) {
         scanned: allChanges.length,
         changes: allChanges,
         expectedPaths,
+        url: pageConfig.url
     };
 }

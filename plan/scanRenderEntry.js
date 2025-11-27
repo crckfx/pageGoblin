@@ -111,13 +111,9 @@ export function scanRenderEntry(root, page, config, goblinCache, graftStatus) {
 
     return {
         changed,
-        // status: "RENDER",
         dstPath, 
         inputHashes, 
         cacheKey,
     }
 
-    return changed
-        ? [{ status: "RENDER", dstPath, inputHashes, cacheKey }]
-        : [];
 }

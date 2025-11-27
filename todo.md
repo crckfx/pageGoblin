@@ -15,3 +15,4 @@
 - [ ] delete stale graft entries from cache
 - [ ] fix some bad names 
     - [ ] rename the now-misnomer "htmlChanges" (it now carries all the page build things)
+- [ ] make grafts available for contentPath (and possibly more) too (they currently are only for fragments)
