@@ -1,6 +1,7 @@
 import path from "path";
 import { existsSync } from "fs";
 import { loadJSON } from "./helpers.js";
+import { pathToFileURL } from "url";
 
 export async function loadAndValidateConfig(projectRoot, configPath) {
     // first, hard the project root
@@ -17,11 +18,17 @@ export async function loadAndValidateConfig(projectRoot, configPath) {
 
     // get absPath for config-level default fragments (fragments level 0)
     if (config.fragments) {
-        for (const [k, v] of Object.entries(config.fragments))
-            config.fragments[k] = resolveIfSet(v);
+        for (const [k, v] of Object.entries(config.fragments)) {
+            if (typeof v === "string" && v.startsWith("graft:")) {
+                config.fragments[k] = v; // keep it exactly as-is
+            } else {
+                config.fragments[k] = resolveIfSet(v);
+            }
+        }
     }
     // get absPath for config-level default template (template level 0)
     if (config.templatePath) config.templatePath = resolveIfSet(config.templatePath);
+
 
     // ***************************************************
     // ESSENTIAL (as per current design)
@@ -40,8 +47,13 @@ export async function loadAndValidateConfig(projectRoot, configPath) {
 
             // get absPath for profile-level fragments (fragments level 1)
             if (profile.fragments) {
-                for (const [k, v] of Object.entries(profile.fragments))
-                    profile.fragments[k] = v === null ? null : resolveIfSet(v);
+                for (const [k, v] of Object.entries(profile.fragments)) {
+                    if (typeof v === "string" && v.startsWith("graft:")) {
+                        profile.fragments[k] = v; // keep it exactly as-is
+                    } else {
+                        profile.fragments[k] = resolveIfSet(v);
+                    }
+                }
             }
         }
     }
@@ -52,6 +64,21 @@ export async function loadAndValidateConfig(projectRoot, configPath) {
             throw new Error(`Invalid source entry: ${JSON.stringify(src)}`);
         src.path = resolveIfSet(src.path);
     }
+
+    // providers (experimental)
+    if (config.providersFile) {
+        const abs = path.resolve(absProjectRoot, config.providersFile);
+        const fileUrl = pathToFileURL(abs).href;
+        try {
+            config.providers = await import(fileUrl);
+        } catch (err) {
+            config.providers = {};
+        }
+    } else {
+        config.providers = {};
+    }
+
+
     // ***************************************************
 
     return config;
