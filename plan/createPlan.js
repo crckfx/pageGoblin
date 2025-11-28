@@ -27,8 +27,15 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
     const dist = path.resolve(distRoot);
     const goblinCache = loadGoblinCache(root);
     
+    // ------------------ BUILD CONTEXT -----------------------------
+    // this defines the data that gets handed over to graft logic
+    // (specific use case is generating a header menu nav from the pages list)
+    const buildContext = {
+        pages: allPages,
+        config: config,
+    }
 
-    // // ------------------ GRAFT STUFF -----------------------------
+    // ------------------ GRAFT STUFF -----------------------------
 
     const routedGrafts = routeGrafts(root, config.grafts, config.providers);
     // console.log(`found grafts: ${routedGrafts.length}. `);
@@ -45,6 +52,33 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
 
     // now we have a pretty good but crude picture about the grafts.
     // importantly, we don't know here if a graft's function output changed.
+
+
+    for (const g of routedGrafts) {
+        const status = graftStatus[g.name];
+
+        const cacheKey = status.outputPath;
+
+        // ----- compute dynamic locals + fnOut -----
+        const { locals, fnOutputHashes } = await computeGraftData(g, buildContext);
+
+        // ----- compare fnOutHashes with cached -----
+        const prev = goblinCache.grafts[cacheKey] || {};
+        const prevFn = prev.fnOutputHashes || {};
+        const fnOutChanged = JSON.stringify(prevFn) !== JSON.stringify(fnOutputHashes);
+
+
+        const finalNeedsRender = status.needsRender || fnOutChanged;
+
+        // ----- store results directly on the existing status -----
+        status.locals = locals;
+        status.fnOutputHashes = fnOutputHashes;
+        status.fnOutChanged = fnOutChanged;
+        status.finalNeedsRender = finalNeedsRender;
+    }
+
+    // now we know the definitive about graft status?
+
     // ------------------ /GRAFT STUFF -----------------------------
 
 
@@ -55,6 +89,7 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
     const htmlChanges = [];
     let renderablePages = 0;
     let totalImports = 0;
+    // THIS LOOP RIGHT HERE OFFICER - WE SHOULD BE ABLE TO COMPUTE FINAL GRAFT STUFF RIGHT HERE
     for (const page of allPages) {
         page.outDir = path.resolve(dist, "." + page.outDir);
 
@@ -122,34 +157,36 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
         totalImports: totalImports,
     }
 
+
+
     // it feels cheap to do stuff AFTER plan declaration.
     // at this point, plan has been declared, and anything that writes to it is considered cheap mutation.
     
     // ----------------- GRAFT RENDERING -----------------
     // in order to have a function body output notify of changes, we (currently) need to compute the graft here, with the complete plan.
-    for (const g of plan.grafts) {
-        const status = plan.graftStatus[g.name];
+    // for (const g of plan.grafts) {
+    //     const status = plan.graftStatus[g.name];
 
-        const cacheKey = status.outputPath;
+    //     const cacheKey = status.outputPath;
 
-        // ----- compute dynamic locals + fnOut -----
-        const { locals, fnOutputHashes } = await computeGraftData(g, plan);
+    //     // ----- compute dynamic locals + fnOut -----
+    //     const { locals, fnOutputHashes } = await computeGraftData(g, plan);
 
-        // ----- compare fnOutHashes with cached -----
-        const prev = plan.goblinCache.grafts[cacheKey] || {};
-        const prevFn = prev.fnOutputHashes || {};
-        const fnOutChanged = JSON.stringify(prevFn) !== JSON.stringify(fnOutputHashes);
+    //     // ----- compare fnOutHashes with cached -----
+    //     const prev = plan.goblinCache.grafts[cacheKey] || {};
+    //     const prevFn = prev.fnOutputHashes || {};
+    //     const fnOutChanged = JSON.stringify(prevFn) !== JSON.stringify(fnOutputHashes);
 
 
-        const finalNeedsRender = status.needsRender || fnOutChanged;
+    //     const finalNeedsRender = status.needsRender || fnOutChanged;
 
-        // ----- store results directly on the existing status -----
-        status.locals = locals;
-        status.fnOutputHashes = fnOutputHashes;
-        status.fnOutChanged = fnOutChanged;
-        status.finalNeedsRender = finalNeedsRender;
+    //     // ----- store results directly on the existing status -----
+    //     status.locals = locals;
+    //     status.fnOutputHashes = fnOutputHashes;
+    //     status.fnOutChanged = fnOutChanged;
+    //     status.finalNeedsRender = finalNeedsRender;
 
-    }
+    // }
 
     // now that grafts are rendered up, we can return the plan
     return plan;

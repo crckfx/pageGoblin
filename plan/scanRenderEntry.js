@@ -69,7 +69,7 @@ export function scanRenderEntry(root, page, config, goblinCache, graftStatus) {
             if (gs?.outputPath) {
                 page.fragments[key] = gs.outputPath;
             }
-            if (gs?.needsRender) {
+            if (gs?.finalNeedsRender) {
                 graftTriggered = true;
             }
 

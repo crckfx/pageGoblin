@@ -18,17 +18,6 @@ import { loadHtml } from "./etc/cheerio-util.js";
 
 const JOB_KEY = "imgGoblin";
 
-function readDistFromCache(projectRoot) {
-    const file = path.join(projectRoot, ".pageGoblin", "cache.json");
-    if (!fs.existsSync(file)) return "";
-    try {
-        const json = JSON.parse(fs.readFileSync(file, "utf8"));
-        return typeof json.dist === "string" ? json.dist : "";
-    } catch {
-        return "";
-    }
-}
-
 /**
  * Apply imgGoblin transforms to a single built HTML page.
  * Returns true on success (even if no changes). Exceptions bubble to caller.
@@ -72,20 +61,23 @@ function sweepCacheForImgGoblin() {
     }
 
     const projectRoot = path.resolve(projectRootArg);
-    const distRoot = path.resolve(readDistFromCache(projectRoot) || "");
+    // const distRoot = path.resolve(readDistFromCache(projectRoot) || "");
+
+    const goblinCache = loadGoblinCache(projectRoot);
+    const distRoot = path.resolve(goblinCache.dist)
     if (!distRoot) {
         console.error("dist path not found in cache.json (expected { pages: {...}, dist: \"...\" }).");
         process.exit(1);
     }
 
-    const pagesMap = loadGoblinCache(projectRoot)?.pages; // flat map (json.pages)
+    // const pagesMap = goblinCache.pages; // flat map (json.pages)
     let considered = 0,
         processed = 0,
         skippedDone = 0,
         missing = 0,
         failed = 0;
 
-    for (const [pagePath, entry] of Object.entries(pagesMap)) {
+    for (const [pagePath, entry] of Object.entries(goblinCache.pages)) {
         if (!/\.html?$/i.test(pagePath)) continue;
 
         const absPagePath = path.resolve(pagePath);
@@ -119,7 +111,7 @@ function sweepCacheForImgGoblin() {
 
     if (write) {
         // persist updated flat map under { pages, dist }
-        saveGoblinCache(projectRoot, pagesMap, distRoot);
+        saveGoblinCache(projectRoot, goblinCache);
     }
 
     const mode = write ? "write" : "preview";

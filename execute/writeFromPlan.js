@@ -44,23 +44,13 @@ export async function writeFromPlan(plan, { verbose = false } = {}) {
 
     // HTML renders
     for (const { dstPath, inputHashes, cacheKey, changed } of htmlChanges) {
-        // 1. Lookup the page object
+        if (!changed) continue;
+
         const page = pages.find(p => {
             const target = path.join(p.outDir, p.outFile || "index.html");
             return target === dstPath;
         });
         if (!page) continue;
-
-        // 2. Determine graft-triggered rebuild
-        const graftTriggered =
-            page.graftsUsed &&
-            page.graftsUsed.some(name => {
-                const gs = plan.graftStatus[name];
-                return gs && gs.finalNeedsRender;
-            });
-
-        // 3. If neither static nor graft-triggered, skip
-        if (!changed && !graftTriggered) continue;
 
         const didRender = await renderEntry(root, page, config, verbose);
         if (didRender) {
