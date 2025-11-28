@@ -19,8 +19,9 @@ export async function writeFromPlan(plan, { verbose = false } = {}) {
     let totalWritten = 0;
 
     // graft renders
-    for (const g of plan.grafts) {
-        const gs = plan.graftStatus[g.name];
+    for (const name in plan.grafts) {
+        const g = plan.grafts[name];
+        const gs = g.status;
         if (!gs || !gs.finalNeedsRender) continue;
 
         await writeGraft({
@@ -30,7 +31,7 @@ export async function writeFromPlan(plan, { verbose = false } = {}) {
         });
 
         // update cache after successful write
-        plan.goblinCache.grafts[gs.outputPath] = {
+        plan.goblinCache.grafts[name] = {
             inputHashes: gs.inputHashes,
             combinedHash: gs.combinedHash,
             fnOutputHashes: gs.fnOutputHashes,

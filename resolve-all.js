@@ -8,7 +8,6 @@ import { cleanFromPlan } from "./execute/cleanFromPlan.js";
 import { writeFromPlan } from "./execute/writeFromPlan.js";
 import { loadAndValidateConfig } from "./etc/config-utils.js";
 import { generateMap_JSON } from "./plugins/mapGen.js";
-import { computeGraftData } from "./plugins/computeGraftData.js";
 
 async function runGenerators({ plan, config, distRoot, verbose }) {
     if (!config.flags?.generate) return;

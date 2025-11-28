@@ -5,7 +5,7 @@ import fs from "fs";
 export function routeGrafts(projectRoot, graftConfig, providers = {}) {
     if (!graftConfig || typeof graftConfig !== "object") return [];
 
-    const routed = [];
+    const routed = {};
 
     for (const [name, entry] of Object.entries(graftConfig)) {
 
@@ -59,12 +59,12 @@ export function routeGrafts(projectRoot, graftConfig, providers = {}) {
             }
         }
 
-        routed.push({
+        routed[name] = {
             name,
             template: templateAbs,
             inputs: resolvedInputs,
             looksGood: (templateExists && inputsAllExist)
-        });
+        };
     }
 
     return routed;

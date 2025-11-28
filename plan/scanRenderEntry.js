@@ -24,7 +24,7 @@ function mergeFragmentsForPage(config, page) {
 }
 
 
-export function scanRenderEntry(root, page, config, goblinCache, graftStatus) {
+export function scanRenderEntry(root, page, config, goblinCache, grafts) {
     // No HTML to render for this entry
     if (!page.contentPath || page.contentPath.length === 0) return [];
 
@@ -60,7 +60,7 @@ export function scanRenderEntry(root, page, config, goblinCache, graftStatus) {
 
             page.graftsUsed.push(graftName);
 
-            const gs = graftStatus?.[graftName];
+            const gs = grafts?.[graftName].status;
 
             // hashing
             inputHashes[key] = filePath; // should be something like "graft:something.html"
