@@ -9,7 +9,7 @@ import { processGrafts } from "../plugins/processGrafts.js";
 
 
 export async function createPlan(projectRoot, distRoot, config, verbose = false) {
-    // prepare allPages (as in, resolve and flatten whatever 'pages' sources the config lists)
+    // construct allPages (as in, resolve and flatten whatever 'pages' sources the config lists)
     const allPages = [];
     for (const src of config.sources) {
         const profile = config.profiles[src.profile];
@@ -26,23 +26,20 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
 
     // ------------------ BUILD CONTEXT -----------------------------
     // this defines the data that gets handed over to graft logic
-    // (specific use case is generating a header menu nav from the pages list)
+    // (the current specific use case is generating a header menu nav from the pages list)
     const buildContext = {
         root: root,
         pages: allPages,
         config: config,
     }
 
-    // ------------------ GRAFT STUFF -----------------------------
+    // ------------------ GRAFT STUFF -----------------------------    
+    const routedGrafts = await processGrafts({ 
+        buildContext, goblinCache,
+        graftList: config.grafts, 
+        providersList: config.providers
+    });
     
-    const routedGrafts = await processGrafts({ buildContext, graftList: config.grafts, providersList: config.providers, goblinCache });
-    
-    // console.log(routedGrafts);
-    // console.log(fake_routed_grafts);
-    // const routedGrafts = routeGrafts(root, config.grafts, config.providers);
-    // ------------------ /GRAFT STUFF -----------------------------
-
-
     // ------------------ scanRenderEntry + scanEntryImports -----------------------------
     const expectedPaths = new Set();
     const copyChanges = [];

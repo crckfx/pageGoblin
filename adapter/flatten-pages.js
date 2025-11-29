@@ -7,14 +7,18 @@ import { ensureArray } from "../etc/helpers.js";
 export function flattenPages(pages, ancestry = [], depth = 0, profile = {}) {
     const result = [];
 
-    for (const [pageId, config] of Object.entries(pages)) {
+    const profileStyles = ensureArray(profile.styles);
+    const profileScripts = ensureArray(profile.scripts);
+    const profileModules = ensureArray(profile.modules);
+
+    for (const [pageId, data] of Object.entries(pages)) {
         const currentPath = [...ancestry, pageId];
         const navPath = currentPath.join("/");
 
         // infer contentPath
         let contentPath;
-        if (config.contentPath) {
-            contentPath = ensureArray(config.contentPath);
+        if (data.contentPath) {
+            contentPath = ensureArray(data.contentPath);
         } else if (profile.contentRule) {
             contentPath = [
                 profile.contentRule
@@ -33,7 +37,7 @@ export function flattenPages(pages, ancestry = [], depth = 0, profile = {}) {
                 .replace(/\{navPath\}/g, navPath)
             : null;
 
-        const outDir = config.outDir ?? outDirFromRule ?? inferredOutDir;
+        const outDir = data.outDir ?? outDirFromRule ?? inferredOutDir;
         
         let url = outDir;
         // Ensure leading slash
@@ -43,17 +47,17 @@ export function flattenPages(pages, ancestry = [], depth = 0, profile = {}) {
 
 
         const flattened = {
-            ...config,
+            ...data,
             pageId,
-            outDir: outDir,
+            outDir,
             url: url, // parallel url one that WON'T get overwritten perhaps
-            ...(config.outFile ? { outFile: config.outFile } : {}),
+            ...(data.outFile ? { outFile: data.outFile } : {}),
             contentPath,
-            styles: ensureArray(profile.styles).concat(ensureArray(config.styles)),
-            scripts: ensureArray(profile.scripts).concat(ensureArray(config.scripts)),
-            modules: ensureArray(profile.modules).concat(ensureArray(config.modules)),
-            imports: ensureArray(config.imports), // no merge
-            templatePath: config.templatePath ?? profile.templatePath,
+            styles: profileStyles.concat(ensureArray(data.styles)),
+            scripts: profileScripts.concat(ensureArray(data.scripts)),
+            modules: profileModules.concat(ensureArray(data.modules)),
+            imports: ensureArray(data.imports), // no merge because it's not handle at a data level
+            templatePath: data.templatePath ?? profile.templatePath,
             navPath: currentPath,
             depth,
             profile
@@ -61,8 +65,8 @@ export function flattenPages(pages, ancestry = [], depth = 0, profile = {}) {
 
         result.push(flattened);
 
-        if (config.children) {
-            result.push(...flattenPages(config.children, currentPath, depth + 1, profile));
+        if (data.children) {
+            result.push(...flattenPages(data.children, currentPath, depth + 1, profile));
         }
     }
 

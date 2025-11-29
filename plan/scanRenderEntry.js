@@ -43,7 +43,7 @@ export function scanRenderEntry(root, page, config, goblinCache, grafts) {
     const inputHashes = {};
     // Collect fragments (paths) for later render
     page.fragments = mergeFragmentsForPage(config, page);
-    page.graftsUsed = [];
+    // page.graftsUsed = [];
 
     // Hash template + fragments together
     const fileInputs = {
@@ -58,9 +58,9 @@ export function scanRenderEntry(root, page, config, goblinCache, grafts) {
         if (typeof filePath === "string" && filePath.startsWith("graft:")) {
             const graftName = filePath.slice("graft:".length);
 
-            page.graftsUsed.push(graftName);
+            // page.graftsUsed.push(graftName);
 
-            const gs = grafts?.[graftName].status;
+            const gs = grafts?.[graftName]?.status;
 
             // hashing
             inputHashes[key] = filePath; // should be something like "graft:something.html"
@@ -86,14 +86,31 @@ export function scanRenderEntry(root, page, config, goblinCache, grafts) {
         }
     }
 
-    // page.contentPath is guaranteed to be an array
+    // page.contentPath is already guaranteed to be an array
     let combinedContent = "";
     for (let i = 0; i < page.contentPath.length; i++) {
-        try {
-            const abs = path.resolve(root, page.contentPath[i]);
-            combinedContent += fs.readFileSync(abs, "utf8"); + "\n";
-        } catch {
-            combinedContent += "";
+        const cPath = page.contentPath[i];
+        if (cPath.startsWith("graft:")) {
+            const name = cPath.slice("graft:".length);
+            // console.log(`found an unhandled contentPath graft! (at ${dstPath} - ${name})`);
+            const gs = grafts?.[name]?.status;
+            // console.log(gs);
+            if (gs?.finalNeedsRender) {
+                // console.log(`AND this graft (${name}) needs rerender! (setting 'graftTriggered = true')`);
+                // console.log(gs);
+                graftTriggered = true;
+            }
+            // the path gets fixed, but it doesn't detect a render needed (doesn't precompute a graft output)
+            if (gs?.outputPath) {
+                page.contentPath[i] = gs.outputPath;
+            }
+        } else {
+            try {
+                const abs = path.resolve(root, cPath);
+                combinedContent += fs.readFileSync(abs, "utf8"); + "\n";
+            } catch {
+                combinedContent += "";
+            }
         }
     }
     const pageContentHash = hashText(combinedContent);
@@ -104,15 +121,18 @@ export function scanRenderEntry(root, page, config, goblinCache, grafts) {
         inputHashes[key] = hashText(JSON.stringify(page[key]));
     }
 
-
-    // Compare to cache (dry run: do not mutate cache here)
+    // compare to cache but don't mutate it
+    // this ^ is true, but please remember: (!)
+    //  - the real cache file is only written during "if write" phase.
+    //  - the cache we "DO NOT MUTATE" here is the plan's cache in memory, not the file on disk;
+    //      there's no writing to file unless this plan makes it to "if (write)"
     const prev = goblinCache.pages[cacheKey];
     const changed = !prev || graftTriggered || JSON.stringify(prev.inputHashes) !== JSON.stringify(inputHashes);
 
     return {
         changed,
-        dstPath, 
-        inputHashes, 
+        dstPath,
+        inputHashes,
         cacheKey,
     }
 
