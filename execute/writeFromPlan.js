@@ -12,7 +12,7 @@ export async function writeFromPlan(plan, { verbose = false } = {}) {
     const {
         root, pages, config,
         goblinCache, expectedPaths,
-        htmlChanges, copyChanges,
+        pageChanges, copyChanges,
     } = plan;
 
     let totalRendered = 0;
@@ -44,7 +44,7 @@ export async function writeFromPlan(plan, { verbose = false } = {}) {
 
 
     // HTML renders
-    for (const { dstPath, inputHashes, cacheKey, changed } of htmlChanges) {
+    for (const { dstPath, inputHashes, cacheKey, changed } of pageChanges) {
         if (!changed) continue;
 
         const page = pages.find(p => {

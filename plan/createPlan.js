@@ -43,7 +43,7 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
     // ------------------ scanRenderEntry + scanEntryImports -----------------------------
     const expectedPaths = new Set();
     const copyChanges = [];
-    const htmlChanges = [];
+    const pageChanges = [];
     let renderablePages = 0;
     let totalImports = 0;
 
@@ -56,8 +56,7 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
             expectedPaths.add(htmlFile);
             // modifying to return now return data on empty too
             const html = scanRenderEntry(root, page, config, goblinCache, routedGrafts);
-            htmlChanges.push(html);
-
+            pageChanges.push(html);
             renderablePages++;
         }
 
@@ -104,7 +103,7 @@ export async function createPlan(projectRoot, distRoot, config, verbose = false)
 
         expectedPaths: expectedPaths,
         copyChanges: copyChanges,
-        htmlChanges: htmlChanges,
+        pageChanges: pageChanges,
         renderablePages: renderablePages,
         totalImports: totalImports,
     }

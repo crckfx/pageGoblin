@@ -137,6 +137,100 @@ public/
 │       └── index.html
 ```
 
+# Grafts
+
+>want to generate a fragment from your build context? want to include a generated fragment in your build? 
+
+a **graft** is a named fragment that pageGoblin generates at build time, before any page rendering begins. 
+
+where a regular fragment is a static file read from disk, a graft is *produced* by pageGoblin from a template and a set of typed inputs.
+
+grafts are defined in the config under a `"grafts"` key, and referenced anywhere a fragment path would normally go using the `graft:` prefix.
+
+## Defining a graft
+
+```json
+"grafts": {
+    "header.html": {
+        "template": "components/header/header.ejs",
+        "inputs": {
+            "menu": {
+                "type": "function",
+                "name": "generateMenuHTML"
+            }
+        }
+    }
+}
+```
+
+Each key is the graft's name. The value describes the template to render and the inputs to pass into it.
+
+## Input types
+
+### `text`
+A literal string, authored inline in config.
+
+```json
+"inputs": {
+    "greeting": {
+        "type": "text",
+        "value": "hello from config!"
+    }
+}
+```
+
+### `file`
+The contents of a file, read at build time.
+
+```json
+"inputs": {
+    "blurb": {
+        "type": "file",
+        "path": "components/blurb.txt"
+    }
+}
+```
+
+### `function`
+A named function exported from the project's `providersFile`. The function receives the current `buildContext` (which includes the full pages list, config, and project root), making it suitable for things like generating navigation HTML from the page tree.
+
+```json
+"inputs": {
+    "menu": {
+        "type": "function",
+        "name": "generateMenuHTML"
+    }
+}
+```
+
+The `providersFile` is a separate config key pointing to a `.mjs` file that exports these functions:
+
+```json
+"providersFile": "components/providers/providers.mjs"
+```
+
+## Using a graft
+
+Reference a graft anywhere a fragment path is accepted, using the `graft:` prefix:
+
+```json
+"fragments": {
+    "header": "graft:header.html"
+}
+```
+
+Grafts can also appear directly in `contentPath`:
+
+```json
+"contentPath": [
+    "pages/demo.html",
+    "graft:someGeneratedContent.html"
+]
+```
+
+## Caching
+
+Grafts are cached. A graft only re-renders when its inputs change — whether that means a file on disk changed, a function body changed, or a text value in config changed. Any page that uses a graft will also re-render if that graft's output changed.
 
 #  more
 
