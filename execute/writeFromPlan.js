@@ -2,7 +2,7 @@
 import fs from "fs";
 import path from "path";
 import chalk from "chalk";
-import { logChange } from "../etc/helpers.js";
+import { logChange, resolvePath } from "../etc/helpers.js";
 import { ensureDir } from "../etc/helpers.js";
 import { renderPage } from "../render/renderPage.js";
 import { writeGraft } from "../plugins/writeGraft.js";
@@ -115,7 +115,7 @@ async function renderEntry(root, page, config, verbose) {
     if (page.contentPath) {
         const paths = Array.isArray(page.contentPath) ? page.contentPath : [page.contentPath];
         for (let i = 0; i < paths.length; i++) {
-            const abs = path.resolve(root, paths[i]);
+            const abs = resolvePath(root, paths[i]);
             if (!fs.existsSync(abs)) {
                 console.warn(chalk.red(`[MISSING] ${pageId}: ${paths[i]}`));
                 return false;
@@ -128,7 +128,7 @@ async function renderEntry(root, page, config, verbose) {
     if (page.fragments && typeof page.fragments === "object") {
         for (const [k, v] of Object.entries(page.fragments)) {
             if (v === null) continue; // null suppresses
-            fragments[k] = path.isAbsolute(v) ? v : path.resolve(root, v);
+            fragments[k] = resolvePath(root, v);
         }
     }
 

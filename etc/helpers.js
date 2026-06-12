@@ -86,3 +86,9 @@ export async function readAndJoinTextFiles(paths) {
     return contents.join("\n");
 }
 
+// helper to resolve a path that may carry an "ext:" prefix
+export function resolvePath(root, filePath) {
+    if (!filePath) return null;
+    if (filePath.startsWith("ext:")) return path.resolve(filePath.slice("ext:".length));
+    return path.resolve(root, filePath);
+}

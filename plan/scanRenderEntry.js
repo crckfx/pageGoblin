@@ -1,7 +1,8 @@
 // plan/scanRenderEntry.js
 import fs from "fs";
-import path from "path";
+import path, { resolve } from "path";
 import { hashText } from "../etc/cache-utils.js";
+import { resolvePath } from "../etc/helpers.js";
 
 function mergeFragmentsForPage(config, page) {
     const merged = { ...config.fragments };
@@ -78,7 +79,7 @@ export function scanRenderEntry(root, page, config, goblinCache, grafts) {
 
         // ----------------- normal file -----------------
         try {
-            const abs = path.resolve(root, filePath);
+            const abs = resolvePath(root, filePath);
             const content = fs.readFileSync(abs, "utf8");
             inputHashes[key] = hashText(content);
         } catch {
@@ -106,7 +107,7 @@ export function scanRenderEntry(root, page, config, goblinCache, grafts) {
             }
         } else {
             try {
-                const abs = path.resolve(root, cPath);
+                const abs = resolvePath(root, cPath);
                 combinedContent += fs.readFileSync(abs, "utf8"); + "\n";
             } catch {
                 combinedContent += "";

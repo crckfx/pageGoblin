@@ -1,6 +1,7 @@
 // graft-router.js
 import path from "path";
 import fs from "fs";
+import { resolvePath } from "../etc/helpers.js";
 
 export function routeGrafts(projectRoot, graftConfig, providers = {}) {
     if (!graftConfig || typeof graftConfig !== "object") return [];
@@ -31,7 +32,7 @@ export function routeGrafts(projectRoot, graftConfig, providers = {}) {
                     break;
 
                 case "file":
-                    const abs = path.resolve(projectRoot, input.path);
+                    const abs = resolvePath(projectRoot, input.path);
                     resolvedInputs[key] = {
                         type: "file",
                         path: input.path,

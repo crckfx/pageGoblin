@@ -1,7 +1,7 @@
 // resolve.all.js
 import chalk from "chalk";
 import path from "path";
-import { isCLI } from "./etc/helpers.js";
+import { isCLI, resolvePath } from "./etc/helpers.js";
 import { saveGoblinCache } from "./etc/cache-utils.js";
 import { createPlan } from "./plan/createPlan.js";
 import { cleanFromPlan } from "./execute/cleanFromPlan.js";
@@ -13,7 +13,7 @@ async function runGenerators({ plan, config, distRoot, verbose }) {
     if (!config.flags?.generate) return;
 
     for (const [key, outFile] of Object.entries(config.flags.generate)) {
-        const outputPath = path.resolve(distRoot, outFile);
+        const outputPath = resolvePath(distRoot, outFile);
 
         switch (key) {
             case "map_JSON":

@@ -4,7 +4,7 @@
 import fs from "fs";
 import path from "path";
 import { scanDifferences } from "../transfer/diffEngine.js";
-import { logChange } from "../etc/helpers.js";
+import { logChange, resolvePath } from "../etc/helpers.js";
 
 /**
  * Resolve imports for a single page config (dry-run).
@@ -28,8 +28,9 @@ export function scanEntryImports(absProjectRoot, pageConfig, options = {}) {
     const allChanges = [];
 
     for (const importPath of imports) {
-        const src = path.resolve(absProjectRoot, importPath);                // project-relative source
-        const dst = path.join(outputDir, path.basename(importPath));         // land under outDir
+        if (!importPath) continue;
+        const src = resolvePath(absProjectRoot, importPath);                // project-relative source
+        const dst = path.join(outputDir, path.basename(importPath));        // land under outDir
 
         if (!fs.existsSync(src)) {
             // Declared source missing in project → skip this import
