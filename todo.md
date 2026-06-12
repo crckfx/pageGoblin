@@ -19,7 +19,7 @@
 - [x] rebuild (force) if a page's graft function output changed
 - [x] fix stale page deletion from cache (bug born from *pass around whole cache* change)
 - [x] delete stale graft entries from cache
-- [ ] delete stale graft files from .pageGoblin
+- [x] delete stale graft files from .pageGoblin
 - [ ] fix some bad names 
     - [x] rename the now-misnomer `htmlChanges` (it now carries all the page build things) DONE - renamed to `pageChanges`
 - [x] make grafts available for `contentPath` 

@@ -143,6 +143,17 @@ export async function processGrafts({
     for (const key in goblinCache.grafts) {
         if (!routedGrafts[key]) delete goblinCache.grafts[key];
     }
-
+ 
+    // -----------------------------
+    // Delete stale graft files
+    // -----------------------------
+    if (fs.existsSync(graftOutputDir)) {
+        for (const file of fs.readdirSync(graftOutputDir)) {
+            if (!routedGrafts[file]) {
+                fs.unlinkSync(path.join(graftOutputDir, file));
+            }
+        }
+    }
+ 
     return routedGrafts;
 }
